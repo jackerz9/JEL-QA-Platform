@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const agentSchema = new mongoose.Schema({
   respondioId: { type: String, required: true, unique: true },
   name: { type: String, required: true },
+  email: { type: String },
   instance: { type: String, enum: ['venezuela', 'internacional'], required: true },
   active: { type: Boolean, default: true },
 }, { timestamps: true });
