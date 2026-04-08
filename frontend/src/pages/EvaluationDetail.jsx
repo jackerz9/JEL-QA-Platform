@@ -79,7 +79,10 @@ export default function EvaluationDetail() {
     if (!confirm('¿Re-evaluar esta conversación con DeepSeek? Esto reemplazará los scores actuales.')) return;
     setReevaling(true);
     try {
-      await fetch(`/api/evaluations/${conversationId}/reevaluate`, { method: 'POST' });
+      await fetch(`/api/evaluations/${conversationId}/reevaluate`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${localStorage.getItem('jel_token')}` },
+      });
       loadData();
     } catch (err) {
       alert('Error al re-evaluar: ' + err.message);

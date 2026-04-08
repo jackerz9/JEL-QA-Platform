@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Save, RotateCcw, Settings as SettingsIcon } from 'lucide-react';
+import { fetchAuth } from '../utils/api';
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState(null);
@@ -8,16 +9,15 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState('');
 
   useEffect(() => {
-    fetch('/api/settings').then(r => r.json()).then(s => { setSettings(s); setLoading(false); }).catch(() => setLoading(false));
+    fetchAuth('/settings').then(r => r.json()).then(s => { setSettings(s); setLoading(false); }).catch(() => setLoading(false));
   }, []);
 
   const save = async (section, data) => {
     setSaving(true);
     setSaved('');
     try {
-      const res = await fetch(`/api/settings/${section}`, {
+      const res = await fetchAuth(`/settings/${section}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
       const updated = await res.json();
@@ -33,7 +33,7 @@ export default function SettingsPage() {
 
   const reset = async () => {
     if (!confirm('¿Restaurar toda la configuración a valores por defecto? Esto no se puede deshacer.')) return;
-    const res = await fetch('/api/settings/reset', { method: 'POST' });
+    const res = await fetchAuth('/settings/reset', { method: 'POST' });
     const updated = await res.json();
     setSettings(updated);
     setSaved('reset');

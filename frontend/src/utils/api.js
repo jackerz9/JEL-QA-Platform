@@ -1,15 +1,41 @@
 const BASE = '/api';
 
+function getToken() {
+  return localStorage.getItem('jel_token');
+}
+
+function authHeaders(extra = {}) {
+  const token = getToken();
+  const h = { ...extra };
+  if (token) h['Authorization'] = `Bearer ${token}`;
+  return h;
+}
+
+// Returns parsed JSON, throws on error
 async function request(path, options = {}) {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...options.headers },
-    ...options,
-  });
+  const headers = authHeaders(options.headers);
+  if (!(options.body instanceof FormData)) headers['Content-Type'] = 'application/json';
+
+  const res = await fetch(`${BASE}${path}`, { ...options, headers });
+
+  if (res.status === 401) {
+    localStorage.removeItem('jel_token');
+    window.location.href = '/';
+    throw new Error('Sesión expirada');
+  }
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.error || 'Request failed');
   }
   return res.json();
+}
+
+// Returns raw Response (for custom handling)
+async function fetchAuth(path, options = {}) {
+  const headers = authHeaders(options.headers);
+  if (options.body && !(options.body instanceof FormData)) headers['Content-Type'] = 'application/json';
+  return fetch(`${BASE}${path}`, { ...options, headers });
 }
 
 export const api = {
@@ -24,11 +50,7 @@ export const api = {
   getEvaluationDetail: (id) => request(`/evaluations/${id}`),
 
   // Upload
-  uploadFiles: async (formData) => {
-    const res = await fetch(`${BASE}/upload`, { method: 'POST', body: formData });
-    if (!res.ok) throw new Error('Upload failed');
-    return res.json();
-  },
+  uploadFiles: (formData) => request('/upload', { method: 'POST', body: formData }),
   getBatchStatus: (id) => request(`/upload/${id}/status`),
   getBatches: (params) => request(`/upload?${new URLSearchParams(params || {})}`),
 
@@ -57,3 +79,5 @@ export const api = {
   // Health
   health: () => request('/health'),
 };
+
+export { fetchAuth };

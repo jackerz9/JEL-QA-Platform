@@ -8,8 +8,10 @@ const uploadRouter = require('./routes/upload');
 const dashboardRouter = require('./routes/dashboard');
 const reportsRouter = require('./routes/reports');
 const settingsRouter = require('./routes/settings');
+const authRouter = require('./routes/auth');
 const { agentsRouter, categoriesRouter, contactsRouter } = require('./routes/crud');
 const { errorHandler } = require('./middleware/errorHandler');
+const { auth, requireRole } = require('./middleware/auth');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -32,19 +34,8 @@ app.use((req, res, next) => {
   next();
 });
 
-// API routes
-app.use('/api/upload', uploadRouter);
-app.use('/api/dashboard', dashboardRouter);
-app.use('/api/reports', reportsRouter);
-app.use('/api/settings', settingsRouter);
-app.use('/api/agents', agentsRouter);
-app.use('/api/categories', categoriesRouter);
-app.use('/api/contacts', contactsRouter);
-
-// Evaluations routes (from dashboard router)
-app.use('/api', dashboardRouter);
-
-// Health check
+// ── Public routes (no auth) ──
+app.use('/api/auth', authRouter);
 app.get('/api/health', async (req, res) => {
   const { Evaluation, Conversation } = require('./models');
   const [evalCount, convCount] = await Promise.all([
@@ -58,6 +49,21 @@ app.get('/api/health', async (req, res) => {
     stats: { evaluations: evalCount, conversations: convCount },
   });
 });
+
+// ── Protected routes ──
+// All roles: dashboard, evaluations, reports (read only)
+app.use('/api/dashboard', auth, dashboardRouter);
+app.use('/api', auth, dashboardRouter); // evaluations routes
+app.use('/api/reports', auth, reportsRouter);
+
+// Admin + Supervisor: upload, contacts, agents, categories
+app.use('/api/upload', auth, requireRole('admin', 'supervisor'), uploadRouter);
+app.use('/api/contacts', auth, requireRole('admin', 'supervisor'), contactsRouter);
+app.use('/api/agents', auth, requireRole('admin', 'supervisor'), agentsRouter);
+app.use('/api/categories', auth, requireRole('admin', 'supervisor'), categoriesRouter);
+
+// Admin only: settings
+app.use('/api/settings', auth, requireRole('admin'), settingsRouter);
 
 // Error handler for API routes
 app.use('/api', errorHandler);

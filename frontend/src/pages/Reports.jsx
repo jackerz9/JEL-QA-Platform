@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { FileText, AlertTriangle, TrendingUp, MessageSquare } from 'lucide-react';
-import { api } from '../utils/api';
+import { api, fetchAuth } from '../utils/api';
 
 const SENT_COLORS = { muy_positivo: '#10B981', positivo: '#34D399', neutral: '#94A3B8', negativo: '#F59E0B', muy_negativo: '#EF4444' };
 const GRADE_COLORS = { A: '#10B981', B: '#3B82F6', C: '#F59E0B', D: '#F97316', F: '#EF4444' };
@@ -45,7 +45,7 @@ export default function Reports() {
     const params = { dateFrom };
     if (dateTo) params.dateTo = dateTo;
     if (instance) params.instance = instance;
-    fetch(`/api/reports/agents-summary?${new URLSearchParams(params)}`)
+    fetchAuth(`/reports/agents-summary?${new URLSearchParams(params)}`)
       .then(r => r.json()).then(setAgentsSummary).catch(() => {});
   }, [dateFrom, dateTo, instance]);
 
@@ -56,7 +56,7 @@ export default function Reports() {
       const params = { agentId, dateFrom };
       if (dateTo) params.dateTo = dateTo;
       if (instance) params.instance = instance;
-      const res = await fetch(`/api/reports/agent-daily?${new URLSearchParams(params)}`);
+      const res = await fetchAuth(`/reports/agent-daily?${new URLSearchParams(params)}`);
       const data = await res.json();
       setReport(data);
     } catch (err) {

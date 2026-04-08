@@ -41,6 +41,17 @@ router.post('/',
       return res.status(400).json({ error: 'Both conversations and messages CSV files are required' });
     }
 
+    // Check if there's already a batch in progress
+    const activeBatch = await UploadBatch.findOne({
+      status: { $in: ['uploading', 'parsing', 'evaluating'] },
+    });
+    if (activeBatch) {
+      return res.status(409).json({
+        error: `Ya hay una evaluación en curso (${activeBatch.instance}, ${new Date(activeBatch.date).toLocaleDateString('es-CL')}). Espera a que termine o elimínala.`,
+        activeBatchId: activeBatch._id,
+      });
+    }
+
     // Create batch
     const batch = await UploadBatch.create({
       instance,

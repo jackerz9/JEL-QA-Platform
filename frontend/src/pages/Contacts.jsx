@@ -63,7 +63,11 @@ export default function Contacts() {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const res = await fetch('/api/contacts/import-csv', { method: 'POST', body: formData });
+      const res = await fetch('/api/contacts/import-csv', {
+        method: 'POST',
+        body: formData,
+        headers: { Authorization: `Bearer ${localStorage.getItem('jel_token')}` },
+      });
       const contentType = res.headers.get('content-type') || '';
       if (!contentType.includes('application/json')) {
         throw new Error('El servidor no respondió correctamente. Intenta re-deployar la app.');

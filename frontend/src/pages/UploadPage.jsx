@@ -56,7 +56,14 @@ export default function UploadPage() {
       form.append('instance', instance);
       form.append('date', date);
 
-      const result = await api.uploadFiles(form);
+      const token = localStorage.getItem('jel_token');
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: form,
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Upload failed');
       setCurrentBatch(result);
       setConvsFile(null);
       setMsgsFile(null);
@@ -120,12 +127,14 @@ export default function UploadPage() {
             {error && <p className="text-sm text-red-400">{error}</p>}
 
             <button
-              className="btn-primary w-full flex items-center justify-center gap-2"
+              className="btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-50"
               onClick={handleUpload}
-              disabled={uploading || !convsFile || !msgsFile}
+              disabled={uploading || !convsFile || !msgsFile || (currentBatch && !['completed', 'error'].includes(currentBatch.status))}
             >
               {uploading ? <Loader size={16} className="animate-spin" /> : <Upload size={16} />}
-              {uploading ? 'Subiendo...' : 'Subir y evaluar'}
+              {currentBatch && !['completed', 'error'].includes(currentBatch.status)
+                ? 'Evaluación en curso...'
+                : uploading ? 'Subiendo...' : 'Subir y evaluar'}
             </button>
           </div>
         </div>
@@ -225,7 +234,10 @@ export default function UploadPage() {
                           const d = new Date(b.date).toLocaleDateString('es-CL');
                           if (!confirm(`¿Eliminar la carga del ${d} (${b.instance})?\n\nEsto borrará ${b.totalConversations} conversaciones, sus mensajes y evaluaciones. Esta acción no se puede deshacer.`)) return;
                           try {
-                            const res = await fetch(`/api/upload/${b._id}`, { method: 'DELETE' });
+                            const res = await fetch(`/api/upload/${b._id}`, {
+                              method: 'DELETE',
+                              headers: { Authorization: `Bearer ${localStorage.getItem('jel_token')}` },
+                            });
                             const result = await res.json();
                             if (!res.ok) throw new Error(result.error);
                             alert(`Eliminado: ${result.deleted.conversations} conversaciones, ${result.deleted.messages} mensajes, ${result.deleted.evaluations} evaluaciones`);
