@@ -6,6 +6,7 @@ const path = require('path');
 
 const uploadRouter = require('./routes/upload');
 const dashboardRouter = require('./routes/dashboard');
+const evaluationsRouter = require('./routes/evaluations');
 const reportsRouter = require('./routes/reports');
 const settingsRouter = require('./routes/settings');
 const authRouter = require('./routes/auth');
@@ -51,10 +52,8 @@ app.get('/api/health', async (req, res) => {
 });
 
 // ── Protected routes ──
-// All roles: dashboard, evaluations, reports (read only)
-app.use('/api/dashboard', auth, dashboardRouter);
-app.use('/api', auth, dashboardRouter); // evaluations routes
-app.use('/api/reports', auth, reportsRouter);
+// Admin only: settings, users
+app.use('/api/settings', auth, requireRole('admin'), settingsRouter);
 
 // Admin + Supervisor: upload, contacts, agents, categories
 app.use('/api/upload', auth, requireRole('admin', 'supervisor'), uploadRouter);
@@ -62,8 +61,10 @@ app.use('/api/contacts', auth, requireRole('admin', 'supervisor'), contactsRoute
 app.use('/api/agents', auth, requireRole('admin', 'supervisor'), agentsRouter);
 app.use('/api/categories', auth, requireRole('admin', 'supervisor'), categoriesRouter);
 
-// Admin only: settings
-app.use('/api/settings', auth, requireRole('admin'), settingsRouter);
+// All roles: dashboard, evaluations, reports (read only)
+app.use('/api/dashboard', auth, dashboardRouter);
+app.use('/api/evaluations', auth, evaluationsRouter);
+app.use('/api/reports', auth, reportsRouter);
 
 // Error handler for API routes
 app.use('/api', errorHandler);
