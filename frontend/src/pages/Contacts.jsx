@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { Plus, Pencil, Trash2, Save, X, Search } from 'lucide-react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { Plus, Pencil, Trash2, Save, X, Search, Upload } from 'lucide-react';
 import { api } from '../utils/api';
 
 export default function Contacts() {
@@ -10,6 +10,8 @@ export default function Contacts() {
   const [form, setForm] = useState({ respondioId: '', name: '', phone: '', email: '', country: '', username: '' });
   const [showAdd, setShowAdd] = useState(false);
   const [skip, setSkip] = useState(0);
+  const [importing, setImporting] = useState(false);
+  const fileRef = useRef(null);
   const limit = 30;
 
   const load = useCallback(() => {
@@ -54,13 +56,39 @@ export default function Contacts() {
     load();
   };
 
+  const handleImportCSV = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setImporting(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/contacts/import-csv', { method: 'POST', body: formData });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error);
+      alert(`Importados: ${result.total} contactos (${result.upserted} nuevos, ${result.modified} actualizados)`);
+      load();
+    } catch (err) {
+      alert('Error: ' + err.message);
+    } finally {
+      setImporting(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-xl font-semibold">Contactos <span className="text-sm font-normal text-slate-500">({total})</span></h1>
-        <button className="btn-primary flex items-center gap-2 text-sm" onClick={() => { setShowAdd(!showAdd); setEditing(null); setForm({ respondioId: '', name: '', phone: '', email: '', country: '', username: '' }); }}>
-          <Plus size={16} /> Agregar contacto
-        </button>
+        <div className="flex gap-2">
+          <label className={`btn-secondary flex items-center gap-2 text-sm cursor-pointer ${importing ? 'opacity-50' : ''}`}>
+            <Upload size={16} /> {importing ? 'Importando...' : 'Importar CSV'}
+            <input type="file" accept=".csv" className="hidden" ref={fileRef} onChange={handleImportCSV} disabled={importing} />
+          </label>
+          <button className="btn-primary flex items-center gap-2 text-sm" onClick={() => { setShowAdd(!showAdd); setEditing(null); setForm({ respondioId: '', name: '', phone: '', email: '', country: '', username: '' }); }}>
+            <Plus size={16} /> Agregar contacto
+          </button>
+        </div>
       </div>
 
       {/* Search */}
