@@ -42,9 +42,21 @@ async function evaluateQualitative(messages, conversation, categories = []) {
     };
   }
 
-  const categoryList = categories.length > 0
-    ? categories.map(c => `- ${c.code}`).join('\n')
-    : 'No hay categorías precargadas — asigna la que mejor describa el tema.';
+  // Build compact category list grouped by group
+  let categoryList;
+  if (categories.length > 0) {
+    const grouped = {};
+    categories.forEach(c => {
+      const g = c.group || 'Otro';
+      if (!grouped[g]) grouped[g] = [];
+      grouped[g].push(c.name || c.code);
+    });
+    categoryList = Object.entries(grouped)
+      .map(([group, names]) => `[${group}]: ${names.join(' | ')}`)
+      .join('\n');
+  } else {
+    categoryList = 'Sin categorías disponibles.';
+  }
 
   const prompt = `Eres un evaluador de calidad de atención al cliente para JuegaEnLínea (JEL), una plataforma de juegos en línea y apuestas deportivas que opera en Venezuela, Chile, Perú y México.
 
@@ -66,7 +78,7 @@ DATOS DE LA CONVERSACIÓN:
 - Mensajes del agente: ${conversation.outgoingMessages}
 - Mensajes del cliente: ${conversation.incomingMessages}
 
-CATEGORÍAS DISPONIBLES:
+CATÁLOGO DE CATEGORÍAS (OBLIGATORIO usar una de estas, NO inventar nuevas):
 ${categoryList}
 
 EVALÚA ESTOS ASPECTOS:
@@ -83,11 +95,10 @@ Analiza cómo se siente el cliente durante y al final de la conversación.
 - sentiment_score: -100 a 100 (donde -100 es furioso, 0 neutral, 100 encantado)
 - sentiment_detail: Breve descripción del estado emocional del cliente
 
-3. CATEGORIZACIÓN:
-Asigna la categoría MÁS apropiada del listado. Si ninguna aplica bien, sugiere una nueva.
-- aiCategory: El código exacto de la categoría que mejor aplica
+3. CATEGORIZACIÓN (IMPORTANTE):
+- aiCategory: DEBES elegir la categoría EXACTA del catálogo de arriba que mejor aplique. Copia el nombre exacto tal como aparece. NO inventes categorías nuevas.
 - aiCategoryConfidence: 0.0 a 1.0
-- aiSubCategory: Subcategoría más específica si aplica (texto libre, 3-5 palabras)
+- aiSubCategory: Solo si necesitas especificar algo más dentro de la categoría (texto libre, 3-5 palabras)
 
 4. ALERTAS Y COACHING:
 - needsAttention: true/false — ¿Este chat necesita revisión de un supervisor? (cliente muy molesto, agente cometió error grave, info sensible expuesta, problema sin resolver)
