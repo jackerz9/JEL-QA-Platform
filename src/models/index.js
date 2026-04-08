@@ -106,20 +106,34 @@ const evaluationSchema = new mongoose.Schema({
 
   // ── Score cualitativo (DeepSeek) ──
   qualitative: {
-    toneScore: { type: Number }, // 0-100
+    toneScore: { type: Number },
     empathyScore: { type: Number },
-    resolutionScore: { type: Number }, // ¿resolvió el problema?
+    resolutionScore: { type: Number },
     professionalismScore: { type: Number },
     totalScore: { type: Number },
-    summary: { type: String }, // resumen de DeepSeek
+    summary: { type: String },
     strengths: [String],
     improvements: [String],
-    rawResponse: { type: String }, // respuesta completa de DeepSeek
+    rawResponse: { type: String },
   },
 
-  // ── Categorías asignadas por IA ──
-  aiCategories: [String], // del catálogo precargado
-  aiCategoryConfidence: { type: Number }, // 0-1
+  // ── Sentimiento del cliente ──
+  sentiment: {
+    label: { type: String, enum: ['muy_positivo', 'positivo', 'neutral', 'negativo', 'muy_negativo'], default: 'neutral' },
+    score: { type: Number, default: 0 }, // -100 a 100
+    detail: { type: String },
+  },
+
+  // ── Categorización IA ──
+  aiCategories: [String],
+  aiCategory: { type: String }, // categoría principal asignada por IA
+  aiCategoryConfidence: { type: Number },
+  aiSubCategory: { type: String },
+
+  // ── Alertas y coaching ──
+  needsAttention: { type: Boolean, default: false },
+  attentionReason: { type: String },
+  coachingTip: { type: String },
 
   // ── Score final combinado ──
   finalScore: { type: Number }, // 60% cuantitativo + 40% cualitativo

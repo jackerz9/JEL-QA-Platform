@@ -12,13 +12,10 @@ function getClient() {
   return client;
 }
 
-/**
- * Build conversation transcript from messages
- */
 function buildTranscript(messages) {
   return messages
     .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
-    .filter(m => m.senderType !== 'echo') // skip echo messages
+    .filter(m => m.senderType !== 'echo')
     .map(m => {
       const role = m.senderType === 'contact' ? 'CLIENTE' :
                    m.senderType === 'user' ? 'AGENTE' :
@@ -30,29 +27,24 @@ function buildTranscript(messages) {
     .join('\n');
 }
 
-/**
- * Evaluate conversation quality using DeepSeek
- */
 async function evaluateQualitative(messages, conversation, categories = []) {
   const transcript = buildTranscript(messages);
 
   if (!transcript.trim() || transcript.length < 20) {
     return {
-      toneScore: 0,
-      empathyScore: 0,
-      resolutionScore: 0,
-      professionalismScore: 0,
-      totalScore: 0,
+      toneScore: 0, empathyScore: 0, resolutionScore: 0, professionalismScore: 0, totalScore: 0,
       summary: 'Conversación vacía o sin contenido evaluable',
-      strengths: [],
-      improvements: [],
+      strengths: [], improvements: [],
+      sentiment: { label: 'neutral', score: 0, detail: '' },
+      aiCategory: null, aiCategoryConfidence: 0, aiSubCategory: '',
+      needsAttention: false, attentionReason: '', coachingTip: '',
       rawResponse: '',
     };
   }
 
   const categoryList = categories.length > 0
-    ? `\nCategorías disponibles para clasificar:\n${categories.map(c => `- ${c.code}: ${c.name}`).join('\n')}`
-    : '';
+    ? categories.map(c => `- ${c.code}`).join('\n')
+    : 'No hay categorías precargadas — asigna la que mejor describa el tema.';
 
   const prompt = `Eres un evaluador de calidad de atención al cliente para JuegaEnLínea (JEL), una plataforma de juegos en línea y apuestas deportivas que opera en Venezuela, Chile, Perú y México.
 
@@ -62,7 +54,7 @@ CONTEXTO DE LA EMPRESA:
 - Se espera que los agentes sean cordiales, usen "usted" (no tutear), sean claros y resolutivos
 - Los mensajes marcados como BOT son respuestas automáticas del sistema y NO deben evaluarse como si fueran del agente
 
-Evalúa la siguiente conversación de soporte y responde ÚNICAMENTE con un JSON válido (sin markdown, sin backticks, sin texto adicional).
+Evalúa la siguiente conversación y responde ÚNICAMENTE con un JSON válido (sin markdown, sin backticks, sin texto adicional).
 
 TRANSCRIPCIÓN:
 ${transcript}
@@ -73,42 +65,70 @@ DATOS DE LA CONVERSACIÓN:
 - Tiempo resolución: ${conversation.resolutionTime || 'N/A'}
 - Mensajes del agente: ${conversation.outgoingMessages}
 - Mensajes del cliente: ${conversation.incomingMessages}
+
+CATEGORÍAS DISPONIBLES:
 ${categoryList}
 
-CRITERIOS DE EVALUACIÓN (cada uno 0-100):
-1. **toneScore**: Tono del agente — ¿Es amable y cálido sin ser robótico? ¿Saluda y se despide? ¿Usa un tono que genera confianza?
-2. **empathyScore**: Empatía — ¿Reconoce la situación del cliente? ¿Valida su frustración antes de dar soluciones? ¿O es frío y transaccional?
-3. **resolutionScore**: Resolución — ¿Resolvió el problema o dio pasos claros para resolverlo? ¿Dejó al cliente con una acción clara? Si cerró sin resolver, penalizar fuerte.
-4. **professionalismScore**: Profesionalismo — ¿Buena ortografía y redacción? ¿Usa "usted"? ¿No comparte información sensible? ¿Mensajes claros y estructurados?
+EVALÚA ESTOS ASPECTOS:
 
-IMPORTANTE:
-- Si la conversación es muy corta (1-2 intercambios simples), ajusta los scores proporcionalmente — no penalices por falta de empatía si la consulta se resolvió en 1 mensaje.
-- Si el agente usó respuestas que parecen templates/copypaste, penaliza ligeramente en tono pero no en resolución si la respuesta fue correcta.
-- Sé justo pero crítico. Un score de 100 es excepcional, 70-80 es buen servicio estándar.
+1. CALIDAD DEL AGENTE (cada uno 0-100):
+- toneScore: Tono — ¿Amable, cálido, genera confianza? ¿Saluda y se despide?
+- empathyScore: Empatía — ¿Reconoce la situación? ¿Valida frustración antes de dar soluciones?
+- resolutionScore: Resolución — ¿Resolvió o dio pasos claros? Si cerró sin resolver, penalizar fuerte.
+- professionalismScore: Profesionalismo — ¿Ortografía, claridad, usa "usted", no comparte info sensible?
+
+2. SENTIMIENTO DEL CLIENTE:
+Analiza cómo se siente el cliente durante y al final de la conversación.
+- sentiment_label: "muy_positivo", "positivo", "neutral", "negativo", "muy_negativo"
+- sentiment_score: -100 a 100 (donde -100 es furioso, 0 neutral, 100 encantado)
+- sentiment_detail: Breve descripción del estado emocional del cliente
+
+3. CATEGORIZACIÓN:
+Asigna la categoría MÁS apropiada del listado. Si ninguna aplica bien, sugiere una nueva.
+- aiCategory: El código exacto de la categoría que mejor aplica
+- aiCategoryConfidence: 0.0 a 1.0
+- aiSubCategory: Subcategoría más específica si aplica (texto libre, 3-5 palabras)
+
+4. ALERTAS Y COACHING:
+- needsAttention: true/false — ¿Este chat necesita revisión de un supervisor? (cliente muy molesto, agente cometió error grave, info sensible expuesta, problema sin resolver)
+- attentionReason: Si needsAttention=true, explica por qué en 1 oración
+- coachingTip: Sugerencia específica y accionable para el agente (1-2 oraciones)
+
+REGLAS:
+- Conversaciones cortas (1-2 intercambios): no penalices empatía si se resolvió rápido
+- Templates/copypaste: penaliza ligeramente tono pero no resolución si fue correcto
+- Score 100 = excepcional, 70-80 = buen estándar, <50 = problema serio
+- needsAttention=true solo para casos que realmente necesiten escalamiento
 
 RESPONDE SOLO CON ESTE JSON:
 {
-  "toneScore": <number>,
-  "empathyScore": <number>,
-  "resolutionScore": <number>,
-  "professionalismScore": <number>,
-  "summary": "<resumen en 1-2 oraciones de la conversación>",
-  "strengths": ["<fortaleza1>", "<fortaleza2>"],
-  "improvements": ["<mejora1>", "<mejora2>"],
-  "suggestedCategories": ["<código categoría más apropiada>"],
-  "categoryConfidence": <0-1>
+  "toneScore": 0,
+  "empathyScore": 0,
+  "resolutionScore": 0,
+  "professionalismScore": 0,
+  "summary": "",
+  "strengths": [],
+  "improvements": [],
+  "sentiment_label": "",
+  "sentiment_score": 0,
+  "sentiment_detail": "",
+  "aiCategory": "",
+  "aiCategoryConfidence": 0,
+  "aiSubCategory": "",
+  "needsAttention": false,
+  "attentionReason": "",
+  "coachingTip": ""
 }`;
 
   try {
     const response = await getClient().chat.completions.create({
       model: 'deepseek-chat',
       messages: [{ role: 'user', content: prompt }],
-      max_tokens: 800,
+      max_tokens: 1000,
       temperature: 0.3,
     });
 
     const raw = response.choices[0]?.message?.content || '';
-    // Clean potential markdown fences
     const clean = raw.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
     const parsed = JSON.parse(clean);
 
@@ -125,40 +145,41 @@ RESPONDE SOLO CON ESTE JSON:
       summary: parsed.summary || '',
       strengths: parsed.strengths || [],
       improvements: parsed.improvements || [],
-      suggestedCategories: parsed.suggestedCategories || [],
-      categoryConfidence: parsed.categoryConfidence || 0,
+      sentiment: {
+        label: parsed.sentiment_label || 'neutral',
+        score: parsed.sentiment_score || 0,
+        detail: parsed.sentiment_detail || '',
+      },
+      aiCategory: parsed.aiCategory || null,
+      aiCategoryConfidence: parsed.aiCategoryConfidence || 0,
+      aiSubCategory: parsed.aiSubCategory || '',
+      needsAttention: parsed.needsAttention || false,
+      attentionReason: parsed.attentionReason || '',
+      coachingTip: parsed.coachingTip || '',
       rawResponse: raw,
     };
   } catch (err) {
     console.error('DeepSeek evaluation error:', err.message);
     return {
-      toneScore: 0,
-      empathyScore: 0,
-      resolutionScore: 0,
-      professionalismScore: 0,
-      totalScore: 0,
+      toneScore: 0, empathyScore: 0, resolutionScore: 0, professionalismScore: 0, totalScore: 0,
       summary: `Error en evaluación: ${err.message}`,
-      strengths: [],
-      improvements: [],
+      strengths: [], improvements: [],
+      sentiment: { label: 'neutral', score: 0, detail: '' },
+      aiCategory: null, aiCategoryConfidence: 0, aiSubCategory: '',
+      needsAttention: false, attentionReason: '', coachingTip: '',
       rawResponse: err.message,
     };
   }
 }
 
-/**
- * Calculate final combined score
- */
 function calculateFinalScore(quantitativeTotal, qualitativeTotal) {
-  // 60% cuantitativo, 40% cualitativo
   const final = Math.round(quantitativeTotal * 0.6 + qualitativeTotal * 0.4);
-
   let grade;
   if (final >= 90) grade = 'A';
   else if (final >= 75) grade = 'B';
   else if (final >= 60) grade = 'C';
   else if (final >= 40) grade = 'D';
   else grade = 'F';
-
   return { finalScore: final, grade };
 }
 

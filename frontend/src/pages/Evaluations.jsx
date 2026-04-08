@@ -66,14 +66,14 @@ export default function Evaluations() {
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-xs text-slate-500 border-b border-slate-700">
-              <th className="pb-2 font-medium">Conversación</th>
+              <th className="pb-2 font-medium">Conv.</th>
               <th className="pb-2 font-medium">Agente</th>
-              <th className="pb-2 font-medium">Categoría</th>
-              <th className="pb-2 font-medium text-center">Cuant.</th>
-              <th className="pb-2 font-medium text-center">Cual.</th>
+              <th className="pb-2 font-medium">Categoría IA</th>
+              <th className="pb-2 font-medium text-center">Sent.</th>
               <th className="pb-2 font-medium text-center">Final</th>
               <th className="pb-2 font-medium text-center">Nota</th>
-              <th className="pb-2 font-medium">Resumen IA</th>
+              <th className="pb-2 font-medium">Coaching</th>
+              <th className="pb-2 font-medium text-center">Alerta</th>
             </tr>
           </thead>
           <tbody>
@@ -85,22 +85,30 @@ export default function Evaluations() {
               evals.map(ev => (
                 <tr
                   key={ev._id}
-                  className="border-b border-slate-800 hover:bg-slate-800/30 cursor-pointer"
+                  className={`border-b border-slate-800 hover:bg-slate-800/30 cursor-pointer ${ev.needsAttention ? 'bg-red-500/5' : ''}`}
                   onClick={() => navigate(`/evaluations/${ev.conversationId}`)}
                 >
                   <td className="py-2.5 font-mono text-xs text-slate-400">{ev.conversationId?.slice(-8)}</td>
-                  <td className="py-2.5">{ev.agentName}</td>
-                  <td className="py-2.5 text-xs text-slate-400 max-w-[200px] truncate">
-                    {ev.aiCategories?.[0] || '—'}
+                  <td className="py-2.5 text-sm">{ev.agentName}</td>
+                  <td className="py-2.5 text-xs text-slate-400 max-w-[180px] truncate">
+                    {ev.aiCategory || ev.aiCategories?.[0] || '—'}
                   </td>
-                  <td className="py-2.5 text-center font-mono">{ev.quantitative?.totalScore ?? '—'}</td>
-                  <td className="py-2.5 text-center font-mono">{ev.qualitative?.totalScore ?? '—'}</td>
+                  <td className="py-2.5 text-center text-base">
+                    {ev.sentiment?.label === 'muy_positivo' ? '😊' :
+                     ev.sentiment?.label === 'positivo' ? '🙂' :
+                     ev.sentiment?.label === 'neutral' ? '😐' :
+                     ev.sentiment?.label === 'negativo' ? '😠' :
+                     ev.sentiment?.label === 'muy_negativo' ? '🤬' : '—'}
+                  </td>
                   <td className="py-2.5 text-center font-semibold">{ev.finalScore}</td>
                   <td className="py-2.5 text-center">
                     <span className={`badge grade-${ev.grade}`}>{ev.grade}</span>
                   </td>
-                  <td className="py-2.5 text-xs text-slate-400 max-w-[250px] truncate">
-                    {ev.qualitative?.summary || '—'}
+                  <td className="py-2.5 text-xs text-slate-400 max-w-[220px] truncate">
+                    {ev.coachingTip || ev.qualitative?.summary || '—'}
+                  </td>
+                  <td className="py-2.5 text-center">
+                    {ev.needsAttention && <span className="text-red-400" title={ev.attentionReason}>⚠</span>}
                   </td>
                 </tr>
               ))

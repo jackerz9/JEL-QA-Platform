@@ -6,6 +6,7 @@ const path = require('path');
 
 const uploadRouter = require('./routes/upload');
 const dashboardRouter = require('./routes/dashboard');
+const reportsRouter = require('./routes/reports');
 const { agentsRouter, categoriesRouter, contactsRouter } = require('./routes/crud');
 const { errorHandler } = require('./middleware/errorHandler');
 
@@ -33,6 +34,7 @@ app.use((req, res, next) => {
 // API routes
 app.use('/api/upload', uploadRouter);
 app.use('/api/dashboard', dashboardRouter);
+app.use('/api/reports', reportsRouter);
 app.use('/api/agents', agentsRouter);
 app.use('/api/categories', categoriesRouter);
 app.use('/api/contacts', contactsRouter);

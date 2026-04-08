@@ -137,6 +137,68 @@ export default function EvaluationDetail() {
 
         {/* Scores */}
         <div className="space-y-4">
+          {/* Attention alert */}
+          {ev.needsAttention && (
+            <div className="card border-red-500/40 bg-red-500/5">
+              <div className="flex items-start gap-2">
+                <span className="text-red-400 text-lg leading-none">⚠</span>
+                <div>
+                  <p className="text-sm font-medium text-red-400">Requiere atención</p>
+                  <p className="text-xs text-slate-400 mt-1">{ev.attentionReason}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Sentiment */}
+          {ev.sentiment?.label && (
+            <div className="card">
+              <h3 className="text-sm font-medium text-slate-300 mb-3">Sentimiento del cliente</h3>
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">
+                  {ev.sentiment.label === 'muy_positivo' ? '😊' :
+                   ev.sentiment.label === 'positivo' ? '🙂' :
+                   ev.sentiment.label === 'neutral' ? '😐' :
+                   ev.sentiment.label === 'negativo' ? '😠' : '🤬'}
+                </span>
+                <div className="flex-1">
+                  <p className={`text-sm font-medium capitalize ${
+                    ev.sentiment.score > 30 ? 'text-emerald-400' :
+                    ev.sentiment.score > -30 ? 'text-slate-300' : 'text-red-400'
+                  }`}>
+                    {ev.sentiment.label.replace('_', ' ')}
+                  </p>
+                  <p className="text-xs text-slate-500">{ev.sentiment.detail}</p>
+                </div>
+                <span className={`text-lg font-mono font-semibold ${
+                  ev.sentiment.score > 30 ? 'text-emerald-400' :
+                  ev.sentiment.score > -30 ? 'text-slate-400' : 'text-red-400'
+                }`}>
+                  {ev.sentiment.score > 0 ? '+' : ''}{ev.sentiment.score}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* AI Category */}
+          {(ev.aiCategory || ev.aiSubCategory) && (
+            <div className="card">
+              <h3 className="text-sm font-medium text-slate-300 mb-2">Categoría IA</h3>
+              <p className="text-xs text-jel-orange">{ev.aiCategory || 'Sin categoría'}</p>
+              {ev.aiSubCategory && (
+                <p className="text-xs text-slate-400 mt-1">Sub: {ev.aiSubCategory}</p>
+              )}
+              {ev.aiCategoryConfidence > 0 && (
+                <div className="mt-2">
+                  <div className="h-1 bg-slate-700 rounded-full overflow-hidden">
+                    <div className="h-full bg-jel-orange rounded-full" style={{ width: `${ev.aiCategoryConfidence * 100}%` }} />
+                  </div>
+                  <p className="text-[10px] text-slate-600 mt-0.5">Confianza: {Math.round(ev.aiCategoryConfidence * 100)}%</p>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Quantitative */}
           <div className="card">
             <h3 className="text-sm font-medium text-slate-300 mb-3">
@@ -163,10 +225,17 @@ export default function EvaluationDetail() {
             </div>
           </div>
 
-          {/* AI Summary */}
+          {/* AI Summary + Coaching */}
           <div className="card">
             <h3 className="text-sm font-medium text-slate-300 mb-3">Resumen IA</h3>
             <p className="text-sm text-slate-300 leading-relaxed">{ev.qualitative?.summary || 'Sin resumen'}</p>
+
+            {ev.coachingTip && (
+              <div className="mt-3 p-2.5 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                <p className="text-xs text-blue-400 font-medium mb-1">Tip de coaching</p>
+                <p className="text-xs text-slate-300">{ev.coachingTip}</p>
+              </div>
+            )}
 
             {ev.qualitative?.strengths?.length > 0 && (
               <div className="mt-3">

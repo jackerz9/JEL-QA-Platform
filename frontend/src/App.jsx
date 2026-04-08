@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Routes, Route, NavLink, Navigate } from 'react-router-dom';
-import { LayoutDashboard, Upload, Users, Tag, UserCircle, Activity } from 'lucide-react';
+import { LayoutDashboard, Upload, Users, Tag, UserCircle, Activity, FileText } from 'lucide-react';
 import Dashboard from './pages/Dashboard';
 import UploadPage from './pages/UploadPage';
 import Evaluations from './pages/Evaluations';
 import EvaluationDetail from './pages/EvaluationDetail';
+import Reports from './pages/Reports';
 import Agents from './pages/Agents';
 import Categories from './pages/Categories';
 import Contacts from './pages/Contacts';
@@ -13,6 +14,7 @@ const NAV = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/upload', icon: Upload, label: 'Evaluar' },
   { to: '/evaluations', icon: Activity, label: 'Evaluaciones' },
+  { to: '/reports', icon: FileText, label: 'Reportes' },
   { to: '/agents', icon: Users, label: 'Agentes' },
   { to: '/categories', icon: Tag, label: 'Categorías' },
   { to: '/contacts', icon: UserCircle, label: 'Contactos' },
@@ -67,6 +69,7 @@ export default function App() {
             <Route path="/upload" element={<UploadPage />} />
             <Route path="/evaluations" element={<Evaluations />} />
             <Route path="/evaluations/:conversationId" element={<EvaluationDetail />} />
+            <Route path="/reports" element={<Reports />} />
             <Route path="/agents" element={<Agents />} />
             <Route path="/categories" element={<Categories />} />
             <Route path="/contacts" element={<Contacts />} />
