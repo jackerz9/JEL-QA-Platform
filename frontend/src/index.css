@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-jel-navy text-gray-100 antialiased;
+  }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #1E293B; }
+  ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+}
+
+@layer components {
+  .card {
+    @apply bg-jel-navy-light border border-slate-700/50 rounded-xl p-5;
+  }
+  .btn-primary {
+    @apply bg-jel-orange hover:bg-jel-orange-dark text-white font-medium px-4 py-2 rounded-lg transition-colors duration-150;
+  }
+  .btn-secondary {
+    @apply bg-slate-700 hover:bg-slate-600 text-gray-200 font-medium px-4 py-2 rounded-lg transition-colors duration-150;
+  }
+  .input {
+    @apply bg-jel-navy border border-slate-600 rounded-lg px-3 py-2 text-gray-100 placeholder-slate-500 focus:outline-none focus:border-jel-orange focus:ring-1 focus:ring-jel-orange/50 transition-colors;
+  }
+  .select {
+    @apply bg-jel-navy border border-slate-600 rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-jel-orange;
+  }
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  .grade-A { @apply bg-emerald-500/20 text-emerald-400 border border-emerald-500/30; }
+  .grade-B { @apply bg-blue-500/20 text-blue-400 border border-blue-500/30; }
+  .grade-C { @apply bg-amber-500/20 text-amber-400 border border-amber-500/30; }
+  .grade-D { @apply bg-orange-500/20 text-orange-400 border border-orange-500/30; }
+  .grade-F { @apply bg-red-500/20 text-red-400 border border-red-500/30; }
+}
