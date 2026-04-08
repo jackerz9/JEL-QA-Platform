@@ -203,6 +203,7 @@ export default function UploadPage() {
                 <th className="pb-2 font-medium">Errores</th>
                 <th className="pb-2 font-medium">Estado</th>
                 <th className="pb-2 font-medium">Creado</th>
+                <th className="pb-2 font-medium"></th>
               </tr>
             </thead>
             <tbody>
@@ -217,11 +218,31 @@ export default function UploadPage() {
                     <td className="py-2.5 text-red-400">{b.errorCount || 0}</td>
                     <td className="py-2.5"><span className={`text-xs ${S.color}`}>{S.label}</span></td>
                     <td className="py-2.5 text-slate-500">{new Date(b.createdAt).toLocaleString('es-CL')}</td>
+                    <td className="py-2.5">
+                      <button
+                        className="text-xs text-red-400 hover:text-red-300 hover:underline"
+                        onClick={async () => {
+                          const d = new Date(b.date).toLocaleDateString('es-CL');
+                          if (!confirm(`¿Eliminar la carga del ${d} (${b.instance})?\n\nEsto borrará ${b.totalConversations} conversaciones, sus mensajes y evaluaciones. Esta acción no se puede deshacer.`)) return;
+                          try {
+                            const res = await fetch(`/api/upload/${b._id}`, { method: 'DELETE' });
+                            const result = await res.json();
+                            if (!res.ok) throw new Error(result.error);
+                            alert(`Eliminado: ${result.deleted.conversations} conversaciones, ${result.deleted.messages} mensajes, ${result.deleted.evaluations} evaluaciones`);
+                            api.getBatches().then(setBatches);
+                          } catch (err) {
+                            alert('Error: ' + err.message);
+                          }
+                        }}
+                      >
+                        Eliminar
+                      </button>
+                    </td>
                   </tr>
                 );
               })}
               {batches.length === 0 && (
-                <tr><td colSpan={7} className="py-8 text-center text-slate-500">Sin cargas anteriores</td></tr>
+                <tr><td colSpan={8} className="py-8 text-center text-slate-500">Sin cargas anteriores</td></tr>
               )}
             </tbody>
           </table>

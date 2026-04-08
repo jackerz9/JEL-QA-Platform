@@ -93,6 +93,49 @@ router.get('/', async (req, res) => {
 });
 
 /**
+ * DELETE /api/upload/:batchId
+ * Eliminar un batch completo: evaluaciones, mensajes, conversaciones y el batch
+ */
+router.delete('/:batchId', async (req, res) => {
+  const { batchId } = req.params;
+  if (!batchId || batchId === 'undefined' || batchId.length !== 24) {
+    return res.status(400).json({ error: 'Invalid batch ID' });
+  }
+
+  try {
+    const batch = await UploadBatch.findById(batchId);
+    if (!batch) return res.status(404).json({ error: 'Batch not found' });
+
+    // Get all conversation IDs from this batch
+    const conversations = await Conversation.find({ uploadBatchId: batch._id }, { conversationId: 1 });
+    const convIds = conversations.map(c => c.conversationId);
+
+    // Delete evaluations for these conversations
+    const evalResult = await Evaluation.deleteMany({ conversationId: { $in: convIds } });
+
+    // Delete messages from this batch
+    const msgResult = await Message.deleteMany({ uploadBatchId: batch._id });
+
+    // Delete conversations from this batch
+    const convResult = await Conversation.deleteMany({ uploadBatchId: batch._id });
+
+    // Delete the batch itself
+    await UploadBatch.findByIdAndDelete(batchId);
+
+    res.json({
+      ok: true,
+      deleted: {
+        evaluations: evalResult.deletedCount,
+        messages: msgResult.deletedCount,
+        conversations: convResult.deletedCount,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
  * Process upload: parse CSVs, match, store, evaluate
  */
 async function processUpload(batch, convsPath, msgsPath, instance) {
