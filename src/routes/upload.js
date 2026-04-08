@@ -69,9 +69,17 @@ router.post('/',
  * GET /api/upload/:batchId/status
  */
 router.get('/:batchId/status', async (req, res) => {
-  const batch = await UploadBatch.findById(req.params.batchId);
-  if (!batch) return res.status(404).json({ error: 'Batch not found' });
-  res.json(batch);
+  const { batchId } = req.params;
+  if (!batchId || batchId === 'undefined' || batchId.length !== 24) {
+    return res.status(400).json({ error: 'Invalid batch ID' });
+  }
+  try {
+    const batch = await UploadBatch.findById(batchId);
+    if (!batch) return res.status(404).json({ error: 'Batch not found' });
+    res.json(batch);
+  } catch (err) {
+    return res.status(400).json({ error: 'Invalid batch ID format' });
+  }
 });
 
 /**

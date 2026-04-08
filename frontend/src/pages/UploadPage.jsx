@@ -26,16 +26,20 @@ export default function UploadPage() {
 
   // Poll batch status
   useEffect(() => {
-    if (!currentBatch || ['completed', 'error'].includes(currentBatch.status)) return;
+    if (!currentBatch?._id || ['completed', 'error'].includes(currentBatch.status)) return;
     const interval = setInterval(async () => {
       try {
         const updated = await api.getBatchStatus(currentBatch._id);
+        if (updated?.error) { clearInterval(interval); return; }
         setCurrentBatch(updated);
         if (['completed', 'error'].includes(updated.status)) {
           clearInterval(interval);
           api.getBatches().then(setBatches);
         }
-      } catch (e) { console.error(e); }
+      } catch (e) {
+        console.error(e);
+        clearInterval(interval);
+      }
     }, 3000);
     return () => clearInterval(interval);
   }, [currentBatch]);

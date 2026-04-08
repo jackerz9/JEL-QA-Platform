@@ -197,6 +197,52 @@ router.get('/evaluations', async (req, res) => {
 });
 
 /**
+ * GET /api/evaluations/export/csv
+ * Exportar evaluaciones como CSV — MUST be before :conversationId route
+ */
+router.get('/evaluations/export/csv', async (req, res) => {
+  const { instance, dateFrom, dateTo } = req.query;
+
+  const query = { status: 'scored' };
+  if (instance) query.instance = instance;
+  if (dateFrom || dateTo) {
+    query.evaluatedAt = {};
+    if (dateFrom) query.evaluatedAt.$gte = new Date(dateFrom);
+    if (dateTo) query.evaluatedAt.$lte = new Date(dateTo);
+  }
+
+  const evaluations = await Evaluation.find(query).sort({ evaluatedAt: -1 });
+  const agents = await Agent.find({});
+  const agentMap = {};
+  agents.forEach(a => { agentMap[a.respondioId] = a.name; });
+
+  const header = 'Conversation ID,Agente,Instancia,Score Cuantitativo,Score Cualitativo,Score Final,Nota,Tono,Empatía,Resolución,Profesionalismo,1ra Respuesta,Categoría IA,Resumen\n';
+  const rows = evaluations.map(e => {
+    const fields = [
+      e.conversationId,
+      `"${agentMap[e.agentId] || e.agentId}"`,
+      e.instance,
+      e.quantitative?.totalScore || 0,
+      e.qualitative?.totalScore || 0,
+      e.finalScore,
+      e.grade,
+      e.qualitative?.toneScore || 0,
+      e.qualitative?.empathyScore || 0,
+      e.qualitative?.resolutionScore || 0,
+      e.qualitative?.professionalismScore || 0,
+      e.quantitative?.firstResponseScore || 0,
+      `"${(e.aiCategories || []).join('; ')}"`,
+      `"${(e.qualitative?.summary || '').replace(/"/g, '""')}"`,
+    ];
+    return fields.join(',');
+  }).join('\n');
+
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename=jel-qa-export-${new Date().toISOString().slice(0, 10)}.csv`);
+  res.send('\ufeff' + header + rows);
+});
+
+/**
  * GET /api/evaluations/:conversationId
  * Detalle completo de una evaluación + mensajes
  */
@@ -272,52 +318,6 @@ router.post('/evaluations/:conversationId/reevaluate', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-});
-
-/**
- * GET /api/evaluations/export/csv
- * Exportar evaluaciones como CSV
- */
-router.get('/evaluations/export/csv', async (req, res) => {
-  const { instance, dateFrom, dateTo } = req.query;
-
-  const query = { status: 'scored' };
-  if (instance) query.instance = instance;
-  if (dateFrom || dateTo) {
-    query.evaluatedAt = {};
-    if (dateFrom) query.evaluatedAt.$gte = new Date(dateFrom);
-    if (dateTo) query.evaluatedAt.$lte = new Date(dateTo);
-  }
-
-  const evaluations = await Evaluation.find(query).sort({ evaluatedAt: -1 });
-  const agents = await Agent.find({});
-  const agentMap = {};
-  agents.forEach(a => { agentMap[a.respondioId] = a.name; });
-
-  const header = 'Conversation ID,Agente,Instancia,Score Cuantitativo,Score Cualitativo,Score Final,Nota,Tono,Empatía,Resolución,Profesionalismo,1ra Respuesta,Categoría IA,Resumen\n';
-  const rows = evaluations.map(e => {
-    const fields = [
-      e.conversationId,
-      `"${agentMap[e.agentId] || e.agentId}"`,
-      e.instance,
-      e.quantitative?.totalScore || 0,
-      e.qualitative?.totalScore || 0,
-      e.finalScore,
-      e.grade,
-      e.qualitative?.toneScore || 0,
-      e.qualitative?.empathyScore || 0,
-      e.qualitative?.resolutionScore || 0,
-      e.qualitative?.professionalismScore || 0,
-      e.quantitative?.firstResponseScore || 0,
-      `"${(e.aiCategories || []).join('; ')}"`,
-      `"${(e.qualitative?.summary || '').replace(/"/g, '""')}"`,
-    ];
-    return fields.join(',');
-  }).join('\n');
-
-  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition', `attachment; filename=jel-qa-export-${new Date().toISOString().slice(0, 10)}.csv`);
-  res.send('\ufeff' + header + rows); // BOM for Excel
 });
 
 module.exports = router;
