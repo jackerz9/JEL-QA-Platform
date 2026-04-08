@@ -90,7 +90,7 @@ export default function EvaluationDetail() {
   if (loading) return <div className="text-center py-20 text-slate-500">Cargando...</div>;
   if (!data) return <div className="text-center py-20 text-slate-500">Evaluación no encontrada</div>;
 
-  const { evaluation: ev, conversation: conv, messages, agentName } = data;
+  const { evaluation: ev, conversation: conv, messages, agentName, channelName } = data;
 
   return (
     <div>
@@ -114,7 +114,7 @@ export default function EvaluationDetail() {
         <div>
           <h1 className="text-lg font-semibold">{agentName}</h1>
           <p className="text-sm text-slate-400">
-            {conv?.respondioCategory || 'Sin categoría'} · {new Date(conv?.startedAt).toLocaleString('es-CL')}
+            {conv?.respondioCategory || 'Sin categoría'} · {channelName} · {new Date(conv?.startedAt).toLocaleString('es-CL')}
           </p>
         </div>
         <div className="ml-auto text-right">
@@ -260,7 +260,7 @@ export default function EvaluationDetail() {
           <div className="card text-xs text-slate-500 space-y-1">
             <p>ID: {ev.conversationId}</p>
             <p>Contacto: {ev.contactId}</p>
-            <p>Canal: {conv?.openedByChannel}</p>
+            <p>Canal: {channelName}</p>
             <p>1ra resp: {conv?.firstResponseTime}</p>
             <p>Resolución: {conv?.resolutionTime}</p>
             <p>Msgs: {conv?.outgoingMessages} out / {conv?.incomingMessages} in</p>

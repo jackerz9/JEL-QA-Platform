@@ -163,6 +163,13 @@ const uploadBatchSchema = new mongoose.Schema({
   completedAt: { type: Date },
 }, { timestamps: true });
 
+// ─── Canales ───
+const channelSchema = new mongoose.Schema({
+  channelId: { type: String, required: true, unique: true },
+  name: { type: String, required: true },
+  active: { type: Boolean, default: true },
+}, { timestamps: true });
+
 module.exports = {
   Agent: mongoose.model('Agent', agentSchema),
   Category: mongoose.model('Category', categorySchema),
@@ -171,4 +178,5 @@ module.exports = {
   Message: mongoose.model('Message', messageSchema),
   Evaluation: mongoose.model('Evaluation', evaluationSchema),
   UploadBatch: mongoose.model('UploadBatch', uploadBatchSchema),
+  Channel: mongoose.model('Channel', channelSchema),
 };

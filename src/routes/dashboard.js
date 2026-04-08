@@ -262,14 +262,19 @@ router.get('/evaluations/:conversationId', async (req, res) => {
 
   if (!evaluation) return res.status(404).json({ error: 'Evaluation not found' });
 
-  // Agent name
+  // Agent name + Channel name
   const agent = await Agent.findOne({ respondioId: evaluation.agentId });
+  const { Channel } = require('../models');
+  const channel = conversation?.openedByChannel
+    ? await Channel.findOne({ channelId: conversation.openedByChannel })
+    : null;
 
   res.json({
     evaluation,
     conversation,
     messages,
     agentName: agent?.name || `Agente ${evaluation.agentId}`,
+    channelName: channel?.name || conversation?.openedByChannel || 'Desconocido',
   });
 });
 

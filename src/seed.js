@@ -4,7 +4,30 @@
  */
 require('dotenv').config();
 const mongoose = require('mongoose');
-const { Agent, Category } = require('./models');
+const { Agent, Category, Channel } = require('./models');
+
+const CHANNELS = [
+  { channelId: '41619', name: 'JEL CLP Website Chat' },
+  { channelId: '129635', name: 'Instagram Chile' },
+  { channelId: '129636', name: 'Facebook Chile' },
+  { channelId: '174498', name: 'JEL EC Website Chat' },
+  { channelId: '324856', name: 'JEL MEX Website Chat' },
+  { channelId: '326777', name: 'JEL PEN Website Chat' },
+  { channelId: '326788', name: 'Facebook Ecuador' },
+  { channelId: '326791', name: 'Instagram Ecuador' },
+  { channelId: '346123', name: 'Telegram (1)' },
+  { channelId: '346480', name: 'JEL USD Website Chat' },
+  { channelId: '347216', name: 'Facebook Peru (Nuevo)' },
+  { channelId: '347217', name: 'Instagram Peru (Nuevo)' },
+  { channelId: '412154', name: 'Custom Channel' },
+  { channelId: '434925', name: 'Instagram México' },
+  { channelId: '434926', name: 'Facebook México' },
+  { channelId: '168028', name: 'Google Business' },
+  { channelId: '171364', name: 'Soporte JuegaEnLínea Website Chat' },
+  { channelId: '328853', name: 'Facebook Messenger (VE)' },
+  { channelId: '328854', name: 'Instagram (VE)' },
+  { channelId: '346122', name: 'Telegram' },
+];
 
 const AGENTS = [
   { respondioId: '34301', name: 'Jhorvis Perez', email: 'jhorvisperez@gmail.com', instance: 'venezuela' },
@@ -52,6 +75,16 @@ async function seed() {
     );
   }
   console.log(`✅ Seeded ${AGENTS.length} agents`);
+
+  // Channels - upsert all
+  for (const ch of CHANNELS) {
+    await Channel.findOneAndUpdate(
+      { channelId: ch.channelId },
+      { $set: { ...ch, active: true } },
+      { upsert: true }
+    );
+  }
+  console.log(`✅ Seeded ${CHANNELS.length} channels`);
 
   // Import categories from existing conversations if any
   const { Conversation } = require('./models');
