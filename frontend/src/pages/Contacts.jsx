@@ -64,6 +64,10 @@ export default function Contacts() {
       const formData = new FormData();
       formData.append('file', file);
       const res = await fetch('/api/contacts/import-csv', { method: 'POST', body: formData });
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        throw new Error('El servidor no respondió correctamente. Intenta re-deployar la app.');
+      }
       const result = await res.json();
       if (!res.ok) throw new Error(result.error);
       alert(`Importados: ${result.total} contactos (${result.upserted} nuevos, ${result.modified} actualizados)`);

@@ -192,4 +192,76 @@ contactsRouter.delete('/:id', async (req, res) => {
   res.json({ ok: true });
 });
 
+/**
+ * POST /api/contacts/import-csv
+ * Import contacts from Respond.io CSV export
+ */
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+const { parse } = require('csv-parse');
+
+const contactUpload = multer({
+  dest: path.join(__dirname, '../../uploads'),
+  limits: { fileSize: 20 * 1024 * 1024 },
+});
+
+contactsRouter.post('/import-csv', contactUpload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+  try {
+    const contacts = [];
+    await new Promise((resolve, reject) => {
+      fs.createReadStream(req.file.path)
+        .pipe(parse({ columns: true, trim: true, skip_empty_lines: true }))
+        .on('data', (row) => {
+          // Parse Tags: "username,CURRENCY" or "CURRENCY,username" or just "username"
+          const tags = (row['Tags'] || '').split(',').map(t => t.trim()).filter(Boolean);
+          const currencies = ['VES', 'VEF', 'CLP', 'PEN', 'MEX', 'USD', 'MXN', 'BRL', 'ARS', 'COP'];
+          const username = tags.find(t => !currencies.includes(t.toUpperCase())) || '';
+          const tagList = tags.filter(t => currencies.includes(t.toUpperCase()));
+
+          const name = [row['FirstName'] || '', row['LastName'] || ''].filter(Boolean).join(' ').trim();
+
+          contacts.push({
+            respondioId: row['ContactID'],
+            name: name || undefined,
+            phone: row['PhoneNumber'] || undefined,
+            email: row['Email'] || undefined,
+            country: row['Country'] || undefined,
+            username: username || undefined,
+            tags: tagList.length > 0 ? tagList : (row['Channels'] ? [row['Channels']] : []),
+          });
+        })
+        .on('end', resolve)
+        .on('error', reject);
+    });
+
+    // Bulk upsert
+    const ops = contacts
+      .filter(c => c.respondioId)
+      .map(c => ({
+        updateOne: {
+          filter: { respondioId: c.respondioId },
+          update: { $set: c },
+          upsert: true,
+        },
+      }));
+
+    const result = await Contact.bulkWrite(ops);
+
+    // Clean up uploaded file
+    fs.unlink(req.file.path, () => {});
+
+    res.json({
+      total: contacts.length,
+      upserted: result.upsertedCount,
+      modified: result.modifiedCount,
+    });
+  } catch (err) {
+    fs.unlink(req.file.path, () => {});
+    res.status(400).json({ error: err.message });
+  }
+});
+
 module.exports = { agentsRouter, categoriesRouter, contactsRouter };
