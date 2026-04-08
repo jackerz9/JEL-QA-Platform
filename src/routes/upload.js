@@ -182,32 +182,53 @@ async function processUpload(batch, convsPath, msgsPath, instance) {
     // 5. Evaluate each conversation
     await UploadBatch.findByIdAndUpdate(batch._id, { status: 'evaluating' });
 
+    // Load settings
+    const Settings = require('../models/Settings');
+    const settings = await Settings.getSettings();
+    const filters = settings.filters || {};
+    const weights = settings.weights || {};
+    const aiConfig = settings.ai || {};
+
     const categories = await Category.find({ active: true });
     let evaluated = 0;
     let errors = 0;
+    let skipped = 0;
 
     for (const conv of conversations) {
       try {
         // Get messages for this conversation
         const convMessages = matched.filter(m => m.conversationId === conv.conversationId);
 
-        // Skip conversations with no agent messages
+        // ── Apply configurable filters ──
+        const totalMsgs = convMessages.length;
         const agentMessages = convMessages.filter(m => m.senderType === 'user');
-        if (agentMessages.length === 0) {
-          continue;
-        }
+        const minTotal = filters.minTotalMessages || 3;
+        const minAgent = filters.minAgentMessages || 1;
 
-        // Quantitative scoring
-        const quantitative = evaluateQuantitative(conv);
+        if (totalMsgs < minTotal) { skipped++; continue; }
+        if (agentMessages.length < minAgent) { skipped++; continue; }
+        if (filters.excludeBotOnly && agentMessages.length === 0) { skipped++; continue; }
+        if (filters.excludeUnresolved && !conv.resolvedAt) { skipped++; continue; }
 
-        // Qualitative scoring (DeepSeek)
-        const qualitative = await evaluateQualitative(convMessages, conv, categories);
+        // Quantitative scoring (with configurable weights)
+        const quantitative = evaluateQuantitative(conv, weights);
 
-        // Combined score
-        const { finalScore, grade } = calculateFinalScore(
-          quantitative.totalScore,
-          qualitative.totalScore
-        );
+        // Qualitative scoring (DeepSeek with configurable AI params)
+        const qualitative = await evaluateQualitative(convMessages, conv, categories, aiConfig);
+
+        // Combined score (configurable weights)
+        const qWeight = (weights.quantitativeWeight || 60) / 100;
+        const cWeight = (weights.qualitativeWeight || 40) / 100;
+        const finalScore = Math.round(quantitative.totalScore * qWeight + qualitative.totalScore * cWeight);
+
+        // Grade (configurable thresholds)
+        const g = weights.grades || { A: 90, B: 75, C: 60, D: 40 };
+        let grade;
+        if (finalScore >= g.A) grade = 'A';
+        else if (finalScore >= g.B) grade = 'B';
+        else if (finalScore >= g.C) grade = 'C';
+        else if (finalScore >= g.D) grade = 'D';
+        else grade = 'F';
 
         // Store evaluation
         await Evaluation.findOneAndUpdate(
@@ -246,11 +267,28 @@ async function processUpload(batch, convsPath, msgsPath, instance) {
 
         evaluated++;
 
+        // Update batch progress every 5 evaluations
+        if (evaluated % 5 === 0 || evaluated === 1) {
+          await UploadBatch.findByIdAndUpdate(batch._id, {
+            evaluatedCount: evaluated,
+            errorCount: errors,
+          });
+        }
+
         // Small delay to avoid rate limiting DeepSeek
         await new Promise(r => setTimeout(r, 500));
       } catch (err) {
         console.error(`Error evaluating ${conv.conversationId}:`, err.message);
         errors++;
+
+        // Update error count too
+        if (errors % 3 === 0 || errors === 1) {
+          await UploadBatch.findByIdAndUpdate(batch._id, {
+            evaluatedCount: evaluated,
+            errorCount: errors,
+          });
+        }
+
         await Evaluation.findOneAndUpdate(
           { conversationId: conv.conversationId },
           {

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Routes, Route, NavLink, Navigate } from 'react-router-dom';
-import { LayoutDashboard, Upload, Users, Tag, UserCircle, Activity, FileText } from 'lucide-react';
+import { LayoutDashboard, Upload, Users, Tag, UserCircle, Activity, FileText, Settings } from 'lucide-react';
 import Dashboard from './pages/Dashboard';
 import UploadPage from './pages/UploadPage';
 import Evaluations from './pages/Evaluations';
@@ -9,6 +9,7 @@ import Reports from './pages/Reports';
 import Agents from './pages/Agents';
 import Categories from './pages/Categories';
 import Contacts from './pages/Contacts';
+import SettingsPage from './pages/SettingsPage';
 
 const NAV = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -18,6 +19,7 @@ const NAV = [
   { to: '/agents', icon: Users, label: 'Agentes' },
   { to: '/categories', icon: Tag, label: 'Categorías' },
   { to: '/contacts', icon: UserCircle, label: 'Contactos' },
+  { to: '/settings', icon: Settings, label: 'Configuración' },
 ];
 
 function Sidebar({ collapsed, toggle }) {
@@ -73,6 +75,7 @@ export default function App() {
             <Route path="/agents" element={<Agents />} />
             <Route path="/categories" element={<Categories />} />
             <Route path="/contacts" element={<Contacts />} />
+            <Route path="/settings" element={<SettingsPage />} />
           </Routes>
         </div>
       </main>

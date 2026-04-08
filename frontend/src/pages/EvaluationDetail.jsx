@@ -21,7 +21,8 @@ function ChatBubble({ msg }) {
   const isBot = msg.senderType === 'workflow';
   const isContact = msg.senderType === 'contact';
   const text = msg.content?.text || msg.rawContent || '';
-  const time = new Date(msg.timestamp).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const d = new Date(msg.timestamp);
+  const time = `${String(d.getUTCHours()).padStart(2,'0')}:${String(d.getUTCMinutes()).padStart(2,'0')}:${String(d.getUTCSeconds()).padStart(2,'0')}`;
 
   if (msg.senderType === 'echo') return null;
 

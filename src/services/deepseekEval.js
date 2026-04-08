@@ -21,13 +21,16 @@ function buildTranscript(messages) {
                    m.senderType === 'user' ? 'AGENTE' :
                    m.senderType === 'workflow' ? 'BOT' : 'SISTEMA';
       const text = m.content?.text || m.rawContent || '[contenido no disponible]';
-      const time = new Date(m.timestamp).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+      // Timestamps from Respond.io CSV are already in local time (UTC-4)
+      // Extract HH:MM directly without timezone conversion
+      const d = new Date(m.timestamp);
+      const time = `${String(d.getUTCHours()).padStart(2,'0')}:${String(d.getUTCMinutes()).padStart(2,'0')}`;
       return `[${time}] ${role}: ${text}`;
     })
     .join('\n');
 }
 
-async function evaluateQualitative(messages, conversation, categories = []) {
+async function evaluateQualitative(messages, conversation, categories = [], aiConfig = null) {
   const transcript = buildTranscript(messages);
 
   if (!transcript.trim() || transcript.length < 20) {
@@ -42,7 +45,18 @@ async function evaluateQualitative(messages, conversation, categories = []) {
     };
   }
 
-  // Build compact category list grouped by group
+  // AI config from Settings or defaults
+  const ai = aiConfig || {};
+  const companyContext = ai.companyContext || 'JuegaEnLínea (JEL) es una plataforma de juegos en línea y apuestas deportivas que opera en Venezuela, Chile, Perú y México. Los agentes atienden consultas sobre depósitos, retiros, transferencias, verificación de cuenta, bonos, promociones, bloqueos y juego responsable.';
+  const treatmentRules = ai.treatmentRules || 'El agente DEBE usar "usted" (no tutear). Debe saludar al inicio y despedirse al cerrar. Debe ser cordial, claro y resolutivo.';
+  const penalize = ai.penalize || 'Respuestas copypaste sin personalizar. Cerrar sin confirmar resolución. Compartir información sensible. Jerga inapropiada.';
+  const reward = ai.reward || 'Empatía proactiva. Ofrecer ayuda adicional antes de cerrar. Personalizar respuesta. Seguimiento claro.';
+  const attentionCriteria = ai.attentionCriteria || 'Cliente muy molesto. Agente cometió error grave. Información sensible expuesta. Problema sin resolver.';
+  const model = ai.model || 'deepseek-chat';
+  const maxTokens = ai.maxTokens || 1000;
+  const temperature = ai.temperature || 0.3;
+
+  // Build compact category list grouped
   let categoryList;
   if (categories.length > 0) {
     const grouped = {};
@@ -58,13 +72,15 @@ async function evaluateQualitative(messages, conversation, categories = []) {
     categoryList = 'Sin categorías disponibles.';
   }
 
-  const prompt = `Eres un evaluador de calidad de atención al cliente para JuegaEnLínea (JEL), una plataforma de juegos en línea y apuestas deportivas que opera en Venezuela, Chile, Perú y México.
+  const prompt = `Eres un evaluador de calidad de atención al cliente.
 
 CONTEXTO DE LA EMPRESA:
-- Los agentes atienden consultas sobre: depósitos, retiros, transferencias, verificación de cuenta, bonos, promociones, bloqueos, juego responsable
-- Los clientes contactan principalmente por WhatsApp
-- Se espera que los agentes sean cordiales, usen "usted" (no tutear), sean claros y resolutivos
-- Los mensajes marcados como BOT son respuestas automáticas del sistema y NO deben evaluarse como si fueran del agente
+${companyContext}
+
+REGLAS DE TRATO:
+${treatmentRules}
+
+Los mensajes marcados como BOT son respuestas automáticas del sistema y NO deben evaluarse como si fueran del agente.
 
 Evalúa la siguiente conversación y responde ÚNICAMENTE con un JSON válido (sin markdown, sin backticks, sin texto adicional).
 
@@ -101,13 +117,18 @@ Analiza cómo se siente el cliente durante y al final de la conversación.
 - aiSubCategory: Solo si necesitas especificar algo más dentro de la categoría (texto libre, 3-5 palabras)
 
 4. ALERTAS Y COACHING:
-- needsAttention: true/false — ¿Este chat necesita revisión de un supervisor? (cliente muy molesto, agente cometió error grave, info sensible expuesta, problema sin resolver)
+- needsAttention: true/false — Criterios: ${attentionCriteria}
 - attentionReason: Si needsAttention=true, explica por qué en 1 oración
 - coachingTip: Sugerencia específica y accionable para el agente (1-2 oraciones)
 
+PENALIZAR:
+${penalize}
+
+PREMIAR:
+${reward}
+
 REGLAS:
 - Conversaciones cortas (1-2 intercambios): no penalices empatía si se resolvió rápido
-- Templates/copypaste: penaliza ligeramente tono pero no resolución si fue correcto
 - Score 100 = excepcional, 70-80 = buen estándar, <50 = problema serio
 - needsAttention=true solo para casos que realmente necesiten escalamiento
 
@@ -133,10 +154,10 @@ RESPONDE SOLO CON ESTE JSON:
 
   try {
     const response = await getClient().chat.completions.create({
-      model: 'deepseek-chat',
+      model: model,
       messages: [{ role: 'user', content: prompt }],
-      max_tokens: 1000,
-      temperature: 0.3,
+      max_tokens: maxTokens,
+      temperature: temperature,
     });
 
     const raw = response.choices[0]?.message?.content || '';
