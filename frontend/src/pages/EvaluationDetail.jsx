@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, User, Bot, MessageSquare } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, User, Bot, MessageSquare } from 'lucide-react';
 import { api } from '../utils/api';
 
 function ScoreBar({ label, score, max = 100 }) {
@@ -65,6 +65,28 @@ export default function EvaluationDetail() {
   const [loading, setLoading] = useState(true);
   const [reevaling, setReevaling] = useState(false);
 
+  // Navigation list from sessionStorage
+  const evalList = useMemo(() => {
+    try { return JSON.parse(sessionStorage.getItem('evalList') || '[]'); }
+    catch { return []; }
+  }, []);
+  const currentIndex = evalList.indexOf(conversationId);
+  const hasPrev = currentIndex > 0;
+  const hasNext = currentIndex >= 0 && currentIndex < evalList.length - 1;
+  const goPrev = () => { if (hasPrev) navigate(`/evaluations/${evalList[currentIndex - 1]}`); };
+  const goNext = () => { if (hasNext) navigate(`/evaluations/${evalList[currentIndex + 1]}`); };
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.key === 'ArrowLeft' && hasPrev) goPrev();
+      if (e.key === 'ArrowRight' && hasNext) goNext();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [currentIndex, evalList]);
+
   const loadData = () => {
     setLoading(true);
     api.getEvaluationDetail(conversationId)
@@ -99,16 +121,42 @@ export default function EvaluationDetail() {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm text-slate-400 hover:text-gray-200">
-          <ArrowLeft size={16} /> Volver
+        <button onClick={() => navigate('/evaluations')} className="flex items-center gap-2 text-sm text-slate-400 hover:text-gray-200">
+          <ArrowLeft size={16} /> Volver a lista
         </button>
-        <button
-          className="btn-secondary text-xs flex items-center gap-1.5"
-          onClick={handleReevaluate}
-          disabled={reevaling}
-        >
-          {reevaling ? '⟳ Evaluando...' : '⟳ Re-evaluar con IA'}
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Prev/Next navigation */}
+          {evalList.length > 1 && (
+            <div className="flex items-center gap-1 mr-3">
+              <button
+                onClick={goPrev}
+                disabled={!hasPrev}
+                className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-gray-200 disabled:opacity-25 disabled:cursor-not-allowed"
+                title="Anterior (←)"
+              >
+                <ChevronLeft size={18} />
+              </button>
+              <span className="text-xs text-slate-500 min-w-[50px] text-center">
+                {currentIndex + 1} / {evalList.length}
+              </span>
+              <button
+                onClick={goNext}
+                disabled={!hasNext}
+                className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-gray-200 disabled:opacity-25 disabled:cursor-not-allowed"
+                title="Siguiente (→)"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
+          )}
+          <button
+            className="btn-secondary text-xs flex items-center gap-1.5"
+            onClick={handleReevaluate}
+            disabled={reevaling}
+          >
+            {reevaling ? '⟳ Evaluando...' : '⟳ Re-evaluar con IA'}
+          </button>
+        </div>
       </div>
 
       <div className="flex items-center gap-4 mb-6">

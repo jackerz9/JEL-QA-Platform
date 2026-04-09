@@ -8,7 +8,7 @@ export default function Evaluations() {
   const [evals, setEvals] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({ instance: '', agentId: '', grade: '', sort: '-finalScore', limit: 50, skip: 0 });
+  const [filters, setFilters] = useState({ instance: '', agentId: '', grade: '', dateFrom: '', dateTo: '', sort: '-finalScore', limit: 50, skip: 0 });
   const [agents, setAgents] = useState([]);
 
   useEffect(() => { api.getAgents().then(setAgents).catch(() => {}); }, []);
@@ -40,7 +40,7 @@ export default function Evaluations() {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-3 mb-4">
+      <div className="flex gap-3 mb-4 flex-wrap">
         <select className="select text-sm" value={filters.instance} onChange={e => setFilter('instance', e.target.value)}>
           <option value="">Todas</option>
           <option value="venezuela">Venezuela</option>
@@ -54,6 +54,8 @@ export default function Evaluations() {
           <option value="">Todas las notas</option>
           {['A', 'B', 'C', 'D', 'F'].map(g => <option key={g} value={g}>{g}</option>)}
         </select>
+        <input type="date" className="input text-sm" value={filters.dateFrom || ''} onChange={e => setFilter('dateFrom', e.target.value)} title="Desde" />
+        <input type="date" className="input text-sm" value={filters.dateTo || ''} onChange={e => setFilter('dateTo', e.target.value)} title="Hasta" />
         <select className="select text-sm" value={filters.sort} onChange={e => setFilter('sort', e.target.value)}>
           <option value="-finalScore">Mayor score</option>
           <option value="finalScore">Menor score</option>
@@ -82,11 +84,16 @@ export default function Evaluations() {
             ) : evals.length === 0 ? (
               <tr><td colSpan={8} className="py-10 text-center text-slate-500">Sin evaluaciones</td></tr>
             ) : (
-              evals.map(ev => (
+              evals.map((ev, idx) => (
                 <tr
                   key={ev._id}
                   className={`border-b border-slate-800 hover:bg-slate-800/30 cursor-pointer ${ev.needsAttention ? 'bg-red-500/5' : ''}`}
-                  onClick={() => navigate(`/evaluations/${ev.conversationId}`)}
+                  onClick={() => {
+                    // Store list of conversation IDs for prev/next navigation
+                    sessionStorage.setItem('evalList', JSON.stringify(evals.map(e => e.conversationId)));
+                    sessionStorage.setItem('evalIndex', idx.toString());
+                    navigate(`/evaluations/${ev.conversationId}`);
+                  }}
                 >
                   <td className="py-2.5 font-mono text-xs text-slate-400">{ev.conversationId?.slice(-8)}</td>
                   <td className="py-2.5 text-sm">{ev.agentName}</td>
