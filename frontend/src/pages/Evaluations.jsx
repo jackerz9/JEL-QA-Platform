@@ -67,7 +67,7 @@ export default function Evaluations() {
       <div className="card overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left text-xs text-slate-500 border-b border-slate-700">
+            <tr className="text-left text-xs text-slate-500 border-b border-slate-200">
               <th className="pb-2 font-medium">Conv.</th>
               <th className="pb-2 font-medium">Agente</th>
               <th className="pb-2 font-medium">Categoría IA</th>
@@ -87,7 +87,7 @@ export default function Evaluations() {
               evals.map((ev, idx) => (
                 <tr
                   key={ev._id}
-                  className={`border-b border-slate-800 hover:bg-slate-800/30 cursor-pointer ${ev.needsAttention ? 'bg-red-500/5' : ''}`}
+                  className={`border-b border-slate-100 hover:bg-slate-50/80 cursor-pointer ${ev.needsAttention ? 'bg-red-50/50' : ''}`}
                   onClick={() => {
                     // Store list of conversation IDs for prev/next navigation
                     sessionStorage.setItem('evalList', JSON.stringify(evals.map(e => e.conversationId)));
@@ -95,9 +95,9 @@ export default function Evaluations() {
                     navigate(`/evaluations/${ev.conversationId}`);
                   }}
                 >
-                  <td className="py-2.5 font-mono text-xs text-slate-400">{ev.conversationId?.slice(-8)}</td>
+                  <td className="py-2.5 font-mono text-xs text-slate-500">{ev.conversationId?.slice(-8)}</td>
                   <td className="py-2.5 text-sm">{ev.agentName}</td>
-                  <td className="py-2.5 text-xs text-slate-400 max-w-[180px] truncate">
+                  <td className="py-2.5 text-xs text-slate-500 max-w-[180px] truncate">
                     {ev.aiCategory || ev.aiCategories?.[0] || '—'}
                   </td>
                   <td className="py-2.5 text-center text-base">
@@ -111,11 +111,11 @@ export default function Evaluations() {
                   <td className="py-2.5 text-center">
                     <span className={`badge grade-${ev.grade}`}>{ev.grade}</span>
                   </td>
-                  <td className="py-2.5 text-xs text-slate-400 max-w-[220px] truncate">
+                  <td className="py-2.5 text-xs text-slate-500 max-w-[220px] truncate">
                     {ev.coachingTip || ev.qualitative?.summary || '—'}
                   </td>
                   <td className="py-2.5 text-center">
-                    {ev.needsAttention && <span className="text-red-400" title={ev.attentionReason}>⚠</span>}
+                    {ev.needsAttention && <span className="text-red-600" title={ev.attentionReason}>⚠</span>}
                   </td>
                 </tr>
               ))
@@ -125,7 +125,7 @@ export default function Evaluations() {
 
         {/* Pagination */}
         {total > parseInt(filters.limit) && (
-          <div className="flex justify-between items-center mt-4 pt-4 border-t border-slate-700">
+          <div className="flex justify-between items-center mt-4 pt-4 border-t border-slate-200">
             <span className="text-xs text-slate-500">
               Mostrando {parseInt(filters.skip) + 1}-{Math.min(parseInt(filters.skip) + parseInt(filters.limit), total)} de {total}
             </span>

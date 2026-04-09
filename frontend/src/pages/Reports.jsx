@@ -21,7 +21,7 @@ function ScoreRing({ value, label, color = '#F97316', size = 72 }) {
         <text x={size/2} y={size/2} textAnchor="middle" dominantBaseline="central"
           fill={color} fontSize="18" fontWeight="600">{value}</text>
       </svg>
-      <span className="text-[11px] text-slate-400">{label}</span>
+      <span className="text-[11px] text-slate-500">{label}</span>
     </div>
   );
 }
@@ -81,22 +81,22 @@ export default function Reports() {
       <div className="card mb-6">
         <div className="flex gap-3 items-end">
           <div className="flex-1">
-            <label className="text-xs text-slate-400 block mb-1">Agente</label>
+            <label className="text-xs text-slate-500 block mb-1">Agente</label>
             <select className="select w-full text-sm" value={agentId} onChange={e => setAgentId(e.target.value)}>
               <option value="">Seleccionar agente...</option>
               {agents.map(a => <option key={a._id} value={a.respondioId}>{a.name}</option>)}
             </select>
           </div>
           <div>
-            <label className="text-xs text-slate-400 block mb-1">Desde</label>
+            <label className="text-xs text-slate-500 block mb-1">Desde</label>
             <input type="date" className="input text-sm" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
           </div>
           <div>
-            <label className="text-xs text-slate-400 block mb-1">Hasta (opcional)</label>
+            <label className="text-xs text-slate-500 block mb-1">Hasta (opcional)</label>
             <input type="date" className="input text-sm" value={dateTo} onChange={e => setDateTo(e.target.value)} />
           </div>
           <div>
-            <label className="text-xs text-slate-400 block mb-1">Instancia</label>
+            <label className="text-xs text-slate-500 block mb-1">Instancia</label>
             <select className="select text-sm" value={instance} onChange={e => setInstance(e.target.value)}>
               <option value="">Todas</option>
               <option value="venezuela">Venezuela</option>
@@ -112,12 +112,12 @@ export default function Reports() {
       {/* Agents overview table */}
       {!report && agentsSummary.length > 0 && (
         <div className="card">
-          <h2 className="text-sm font-medium text-slate-300 mb-4">Resumen de agentes — {dateFrom}</h2>
+          <h2 className="text-sm font-medium text-slate-600 mb-4">Resumen de agentes — {dateFrom}</h2>
           <div className="space-y-2">
             {agentsSummary.map(a => (
               <div
                 key={a._id}
-                className="flex items-center gap-4 py-2.5 px-3 rounded-lg bg-slate-800/50 cursor-pointer hover:bg-slate-800"
+                className="flex items-center gap-4 py-2.5 px-3 rounded-lg bg-slate-50 cursor-pointer hover:bg-slate-100"
                 onClick={() => { setAgentId(a._id); }}
               >
                 <div className="flex-1">
@@ -131,13 +131,13 @@ export default function Reports() {
                   <p className="text-[10px] text-slate-500">score</p>
                 </div>
                 <div className="text-center">
-                  <p className={`text-sm ${a.avgSentiment > 0 ? 'text-emerald-400' : a.avgSentiment < -20 ? 'text-red-400' : 'text-slate-400'}`}>
+                  <p className={`text-sm ${a.avgSentiment > 0 ? 'text-emerald-600' : a.avgSentiment < -20 ? 'text-red-600' : 'text-slate-500'}`}>
                     {a.avgSentiment > 0 ? '+' : ''}{Math.round(a.avgSentiment || 0)}
                   </p>
                   <p className="text-[10px] text-slate-500">sentimiento</p>
                 </div>
                 {a.alertCount > 0 && (
-                  <span className="badge bg-red-500/20 text-red-400 border border-red-500/30">
+                  <span className="badge bg-red-50 text-red-600 border border-red-200">
                     {a.alertCount} alertas
                   </span>
                 )}
@@ -154,7 +154,7 @@ export default function Reports() {
           <div className="card mb-4 flex items-center gap-6">
             <div>
               <h2 className="text-lg font-semibold">{report.agent?.name}</h2>
-              <p className="text-sm text-slate-400">{dateFrom}{dateTo ? ` — ${dateTo}` : ''} · {s.totalEvals} conversaciones</p>
+              <p className="text-sm text-slate-500">{dateFrom}{dateTo ? ` — ${dateTo}` : ''} · {s.totalEvals} conversaciones</p>
             </div>
             <div className="ml-auto flex gap-6">
               <ScoreRing value={s.avgFinal} label="Final" color={s.avgFinal >= 75 ? '#10B981' : s.avgFinal >= 50 ? '#F59E0B' : '#EF4444'} />
@@ -167,26 +167,26 @@ export default function Reports() {
           <div className="grid grid-cols-4 gap-4 mb-4">
             <div className="card text-center">
               <p className="text-2xl font-semibold">{s.avgTone}</p>
-              <p className="text-xs text-slate-400">Tono</p>
+              <p className="text-xs text-slate-500">Tono</p>
             </div>
             <div className="card text-center">
               <p className="text-2xl font-semibold">{s.avgEmpathy}</p>
-              <p className="text-xs text-slate-400">Empatía</p>
+              <p className="text-xs text-slate-500">Empatía</p>
             </div>
             <div className="card text-center">
               <p className="text-2xl font-semibold">{s.avgResolution}</p>
-              <p className="text-xs text-slate-400">Resolución</p>
+              <p className="text-xs text-slate-500">Resolución</p>
             </div>
             <div className="card text-center">
               <p className="text-2xl font-semibold">{s.avgProfessionalism}</p>
-              <p className="text-xs text-slate-400">Profesionalismo</p>
+              <p className="text-xs text-slate-500">Profesionalismo</p>
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-4 mb-4">
             {/* Grades */}
             <div className="card">
-              <h3 className="text-sm font-medium text-slate-300 mb-3">Notas</h3>
+              <h3 className="text-sm font-medium text-slate-600 mb-3">Notas</h3>
               <ResponsiveContainer width="100%" height={160}>
                 <BarChart data={gradeData}>
                   <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#94A3B8' }} />
@@ -201,8 +201,8 @@ export default function Reports() {
 
             {/* Sentiment */}
             <div className="card">
-              <h3 className="text-sm font-medium text-slate-300 mb-3">
-                Sentimiento <span className={`ml-2 font-mono text-sm ${s.avgSentiment > 0 ? 'text-emerald-400' : s.avgSentiment < -20 ? 'text-red-400' : 'text-slate-400'}`}>
+              <h3 className="text-sm font-medium text-slate-600 mb-3">
+                Sentimiento <span className={`ml-2 font-mono text-sm ${s.avgSentiment > 0 ? 'text-emerald-600' : s.avgSentiment < -20 ? 'text-red-600' : 'text-slate-500'}`}>
                   {s.avgSentiment > 0 ? '+' : ''}{s.avgSentiment}
                 </span>
               </h3>
@@ -218,11 +218,11 @@ export default function Reports() {
 
             {/* Categories */}
             <div className="card">
-              <h3 className="text-sm font-medium text-slate-300 mb-3">Categorías</h3>
+              <h3 className="text-sm font-medium text-slate-600 mb-3">Categorías</h3>
               <div className="space-y-1.5 max-h-[160px] overflow-y-auto">
                 {s.categoryBreakdown.map(c => (
                   <div key={c.name} className="flex items-center gap-2">
-                    <span className="text-xs text-slate-400 flex-1 truncate">{c.name}</span>
+                    <span className="text-xs text-slate-500 flex-1 truncate">{c.name}</span>
                     <span className="text-xs font-mono text-slate-500">{c.count}</span>
                   </div>
                 ))}
@@ -232,23 +232,23 @@ export default function Reports() {
 
           {/* Alerts */}
           {h.alerts.length > 0 && (
-            <div className="card mb-4 border-red-500/30">
-              <h3 className="text-sm font-medium text-red-400 flex items-center gap-2 mb-3">
+            <div className="card mb-4 border-red-200">
+              <h3 className="text-sm font-medium text-red-600 flex items-center gap-2 mb-3">
                 <AlertTriangle size={16} /> Chats que requieren atención ({h.alerts.length})
               </h3>
               <div className="space-y-2">
                 {h.alerts.map(a => (
                   <div
                     key={a.conversationId}
-                    className="flex items-center gap-3 py-2 px-3 rounded-lg bg-red-500/5 cursor-pointer hover:bg-red-500/10"
+                    className="flex items-center gap-3 py-2 px-3 rounded-lg bg-red-50/50 cursor-pointer hover:bg-red-50"
                     onClick={() => navigate(`/evaluations/${a.conversationId}`)}
                   >
-                    <span className="text-red-400">⚠</span>
+                    <span className="text-red-600">⚠</span>
                     <div className="flex-1">
                       <p className="text-sm">{a.reason}</p>
                       <p className="text-xs text-slate-500">Conv: ...{a.conversationId?.slice(-8)}</p>
                     </div>
-                    <span className="text-sm font-mono text-red-400">{a.finalScore}</span>
+                    <span className="text-sm font-mono text-red-600">{a.finalScore}</span>
                   </div>
                 ))}
               </div>
@@ -258,27 +258,27 @@ export default function Reports() {
           <div className="grid grid-cols-2 gap-4 mb-4">
             {/* Coaching */}
             <div className="card">
-              <h3 className="text-sm font-medium text-blue-400 flex items-center gap-2 mb-3">
+              <h3 className="text-sm font-medium text-blue-600 flex items-center gap-2 mb-3">
                 <MessageSquare size={16} /> Coaching — áreas de mejora recurrentes
               </h3>
               {c.topImprovements.length > 0 ? (
                 <div className="space-y-2">
                   {c.topImprovements.map((imp, i) => (
                     <div key={i} className="flex items-start gap-2">
-                      <span className="badge bg-amber-500/20 text-amber-400 shrink-0">{imp.count}x</span>
-                      <p className="text-sm text-slate-300">{imp.text}</p>
+                      <span className="badge bg-amber-50 text-amber-600 shrink-0">{imp.count}x</span>
+                      <p className="text-sm text-slate-600">{imp.text}</p>
                     </div>
                   ))}
                 </div>
               ) : <p className="text-sm text-slate-500">Sin datos suficientes</p>}
 
               {c.tips.length > 0 && (
-                <div className="mt-4 pt-3 border-t border-slate-700">
-                  <p className="text-xs text-slate-400 mb-2">Tips específicos por chat:</p>
+                <div className="mt-4 pt-3 border-t border-slate-200">
+                  <p className="text-xs text-slate-500 mb-2">Tips específicos por chat:</p>
                   {c.tips.slice(0, 5).map((t, i) => (
                     <div key={i} className="py-1.5 flex items-start gap-2">
                       <span className={`badge grade-${t.grade} shrink-0`}>{t.grade}</span>
-                      <p className="text-xs text-slate-300">{t.tip}</p>
+                      <p className="text-xs text-slate-600">{t.tip}</p>
                     </div>
                   ))}
                 </div>
@@ -287,38 +287,38 @@ export default function Reports() {
 
             {/* Strengths + Best/Worst */}
             <div className="card">
-              <h3 className="text-sm font-medium text-emerald-400 flex items-center gap-2 mb-3">
+              <h3 className="text-sm font-medium text-emerald-600 flex items-center gap-2 mb-3">
                 <TrendingUp size={16} /> Fortalezas recurrentes
               </h3>
               {c.topStrengths.length > 0 ? (
                 <div className="space-y-2 mb-4">
                   {c.topStrengths.map((s, i) => (
                     <div key={i} className="flex items-start gap-2">
-                      <span className="badge bg-emerald-500/20 text-emerald-400 shrink-0">{s.count}x</span>
-                      <p className="text-sm text-slate-300">{s.text}</p>
+                      <span className="badge bg-emerald-50 text-emerald-600 shrink-0">{s.count}x</span>
+                      <p className="text-sm text-slate-600">{s.text}</p>
                     </div>
                   ))}
                 </div>
               ) : <p className="text-sm text-slate-500 mb-4">Sin datos suficientes</p>}
 
-              <div className="border-t border-slate-700 pt-3">
-                <p className="text-xs text-emerald-400 mb-2">Mejores chats:</p>
+              <div className="border-t border-slate-200 pt-3">
+                <p className="text-xs text-emerald-600 mb-2">Mejores chats:</p>
                 {h.best.map(b => (
-                  <div key={b.conversationId} className="py-1 flex items-center gap-2 cursor-pointer hover:bg-slate-800/50 rounded px-1"
+                  <div key={b.conversationId} className="py-1 flex items-center gap-2 cursor-pointer hover:bg-slate-50 rounded px-1"
                     onClick={() => navigate(`/evaluations/${b.conversationId}`)}>
-                    <span className="text-sm font-mono text-emerald-400">{b.finalScore}</span>
-                    <span className="text-xs text-slate-400 flex-1 truncate">{b.summary}</span>
+                    <span className="text-sm font-mono text-emerald-600">{b.finalScore}</span>
+                    <span className="text-xs text-slate-500 flex-1 truncate">{b.summary}</span>
                   </div>
                 ))}
               </div>
 
-              <div className="border-t border-slate-700 pt-3 mt-3">
-                <p className="text-xs text-red-400 mb-2">Chats a revisar:</p>
+              <div className="border-t border-slate-200 pt-3 mt-3">
+                <p className="text-xs text-red-600 mb-2">Chats a revisar:</p>
                 {h.worst.map(b => (
-                  <div key={b.conversationId} className="py-1 flex items-center gap-2 cursor-pointer hover:bg-slate-800/50 rounded px-1"
+                  <div key={b.conversationId} className="py-1 flex items-center gap-2 cursor-pointer hover:bg-slate-50 rounded px-1"
                     onClick={() => navigate(`/evaluations/${b.conversationId}`)}>
-                    <span className="text-sm font-mono text-red-400">{b.finalScore}</span>
-                    <span className="text-xs text-slate-400 flex-1 truncate">{b.summary}</span>
+                    <span className="text-sm font-mono text-red-600">{b.finalScore}</span>
+                    <span className="text-xs text-slate-500 flex-1 truncate">{b.summary}</span>
                   </div>
                 ))}
               </div>
@@ -327,12 +327,12 @@ export default function Reports() {
 
           {/* All evaluations */}
           <div className="card">
-            <h3 className="text-sm font-medium text-slate-300 mb-3">Todas las conversaciones ({s.totalEvals})</h3>
+            <h3 className="text-sm font-medium text-slate-600 mb-3">Todas las conversaciones ({s.totalEvals})</h3>
             <div className="space-y-1">
               {report.evaluations.map(ev => (
                 <div
                   key={ev.conversationId}
-                  className={`flex items-center gap-3 py-2 px-3 rounded-lg cursor-pointer hover:bg-slate-800/50 ${ev.needsAttention ? 'bg-red-500/5' : ''}`}
+                  className={`flex items-center gap-3 py-2 px-3 rounded-lg cursor-pointer hover:bg-slate-50 ${ev.needsAttention ? 'bg-red-50/50' : ''}`}
                   onClick={() => navigate(`/evaluations/${ev.conversationId}`)}
                 >
                   <span className={`badge grade-${ev.grade}`}>{ev.grade}</span>
@@ -344,9 +344,9 @@ export default function Reports() {
                      ev.sentiment?.label === 'negativo' ? '😠' :
                      ev.sentiment?.label === 'muy_negativo' ? '🤬' : '—'}
                   </span>
-                  <span className="text-xs text-slate-400 flex-1 truncate">{ev.summary}</span>
+                  <span className="text-xs text-slate-500 flex-1 truncate">{ev.summary}</span>
                   <span className="text-xs text-slate-500 truncate max-w-[180px]">{ev.aiCategory || ''}</span>
-                  {ev.needsAttention && <span className="text-red-400">⚠</span>}
+                  {ev.needsAttention && <span className="text-red-600">⚠</span>}
                 </div>
               ))}
             </div>

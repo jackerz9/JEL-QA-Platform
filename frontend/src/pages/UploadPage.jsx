@@ -3,11 +3,11 @@ import { Upload, FileText, CheckCircle, AlertCircle, Loader, Clock } from 'lucid
 import { api } from '../utils/api';
 
 const STATUS_MAP = {
-  uploading: { icon: Loader, color: 'text-blue-400', label: 'Subiendo...' },
-  parsing: { icon: Loader, color: 'text-amber-400', label: 'Parseando CSVs...' },
+  uploading: { icon: Loader, color: 'text-blue-600', label: 'Subiendo...' },
+  parsing: { icon: Loader, color: 'text-amber-600', label: 'Parseando CSVs...' },
   evaluating: { icon: Loader, color: 'text-jel-orange', label: 'Evaluando con IA...' },
-  completed: { icon: CheckCircle, color: 'text-emerald-400', label: 'Completado' },
-  error: { icon: AlertCircle, color: 'text-red-400', label: 'Error' },
+  completed: { icon: CheckCircle, color: 'text-emerald-600', label: 'Completado' },
+  error: { icon: AlertCircle, color: 'text-red-600', label: 'Error' },
 };
 
 export default function UploadPage() {
@@ -83,29 +83,29 @@ export default function UploadPage() {
       <div className="grid grid-cols-2 gap-6">
         {/* Upload form */}
         <div className="card">
-          <h2 className="text-sm font-medium text-slate-300 mb-4">Subir archivos de Respond.io</h2>
+          <h2 className="text-sm font-medium text-slate-600 mb-4">Subir archivos de Respond.io</h2>
 
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs text-slate-400 block mb-1">Instancia</label>
+                <label className="text-xs text-slate-500 block mb-1">Instancia</label>
                 <select className="select w-full text-sm" value={instance} onChange={e => setInstance(e.target.value)}>
                   <option value="venezuela">Venezuela</option>
                   <option value="internacional">Internacional</option>
                 </select>
               </div>
               <div>
-                <label className="text-xs text-slate-400 block mb-1">Fecha a evaluar</label>
+                <label className="text-xs text-slate-500 block mb-1">Fecha a evaluar</label>
                 <input type="date" className="input w-full text-sm" value={date} onChange={e => setDate(e.target.value)} />
               </div>
             </div>
 
             {/* Conversations file */}
             <div>
-              <label className="text-xs text-slate-400 block mb-1">CSV Conversaciones</label>
-              <label className="flex items-center gap-3 p-4 border-2 border-dashed border-slate-600 rounded-lg cursor-pointer hover:border-jel-orange/50 transition-colors">
-                <FileText size={20} className={convsFile ? 'text-emerald-400' : 'text-slate-500'} />
-                <span className="text-sm text-slate-300 flex-1 truncate">
+              <label className="text-xs text-slate-500 block mb-1">CSV Conversaciones</label>
+              <label className="flex items-center gap-3 p-4 border-2 border-dashed border-slate-300 rounded-lg cursor-pointer hover:border-jel-orange/50 transition-colors">
+                <FileText size={20} className={convsFile ? 'text-emerald-600' : 'text-slate-500'} />
+                <span className="text-sm text-slate-600 flex-1 truncate">
                   {convsFile ? convsFile.name : 'Seleccionar archivo de conversaciones...'}
                 </span>
                 <input type="file" accept=".csv" className="hidden" onChange={e => setConvsFile(e.target.files[0])} />
@@ -114,17 +114,17 @@ export default function UploadPage() {
 
             {/* Messages file */}
             <div>
-              <label className="text-xs text-slate-400 block mb-1">CSV Mensajes</label>
-              <label className="flex items-center gap-3 p-4 border-2 border-dashed border-slate-600 rounded-lg cursor-pointer hover:border-jel-orange/50 transition-colors">
-                <FileText size={20} className={msgsFile ? 'text-emerald-400' : 'text-slate-500'} />
-                <span className="text-sm text-slate-300 flex-1 truncate">
+              <label className="text-xs text-slate-500 block mb-1">CSV Mensajes</label>
+              <label className="flex items-center gap-3 p-4 border-2 border-dashed border-slate-300 rounded-lg cursor-pointer hover:border-jel-orange/50 transition-colors">
+                <FileText size={20} className={msgsFile ? 'text-emerald-600' : 'text-slate-500'} />
+                <span className="text-sm text-slate-600 flex-1 truncate">
                   {msgsFile ? msgsFile.name : 'Seleccionar archivo de mensajes...'}
                 </span>
                 <input type="file" accept=".csv" className="hidden" onChange={e => setMsgsFile(e.target.files[0])} />
               </label>
             </div>
 
-            {error && <p className="text-sm text-red-400">{error}</p>}
+            {error && <p className="text-sm text-red-600">{error}</p>}
 
             <button
               className="btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-50"
@@ -141,7 +141,7 @@ export default function UploadPage() {
 
         {/* Current batch status */}
         <div className="card">
-          <h2 className="text-sm font-medium text-slate-300 mb-4">Estado del procesamiento</h2>
+          <h2 className="text-sm font-medium text-slate-600 mb-4">Estado del procesamiento</h2>
 
           {currentBatch ? (
             <div className="space-y-4">
@@ -156,21 +156,21 @@ export default function UploadPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-3 text-sm">
-                <div className="bg-slate-800/50 rounded-lg p-3">
+                <div className="bg-slate-50 rounded-lg p-3">
                   <p className="text-xs text-slate-500">Conversaciones</p>
                   <p className="text-lg font-semibold">{currentBatch.totalConversations || 0}</p>
                 </div>
-                <div className="bg-slate-800/50 rounded-lg p-3">
+                <div className="bg-slate-50 rounded-lg p-3">
                   <p className="text-xs text-slate-500">Mensajes</p>
                   <p className="text-lg font-semibold">{currentBatch.totalMessages || 0}</p>
                 </div>
-                <div className="bg-slate-800/50 rounded-lg p-3">
+                <div className="bg-slate-50 rounded-lg p-3">
                   <p className="text-xs text-slate-500">Evaluados</p>
-                  <p className="text-lg font-semibold text-emerald-400">{currentBatch.evaluatedCount || 0}</p>
+                  <p className="text-lg font-semibold text-emerald-600">{currentBatch.evaluatedCount || 0}</p>
                 </div>
-                <div className="bg-slate-800/50 rounded-lg p-3">
+                <div className="bg-slate-50 rounded-lg p-3">
                   <p className="text-xs text-slate-500">Errores</p>
-                  <p className="text-lg font-semibold text-red-400">{currentBatch.errorCount || 0}</p>
+                  <p className="text-lg font-semibold text-red-600">{currentBatch.errorCount || 0}</p>
                 </div>
               </div>
 
@@ -180,7 +180,7 @@ export default function UploadPage() {
                     <span>Progreso</span>
                     <span>{Math.round(((currentBatch.evaluatedCount || 0) / currentBatch.totalConversations) * 100)}%</span>
                   </div>
-                  <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                  <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-jel-orange rounded-full transition-all duration-500"
                       style={{ width: `${((currentBatch.evaluatedCount || 0) / currentBatch.totalConversations) * 100}%` }}
@@ -200,11 +200,11 @@ export default function UploadPage() {
 
       {/* History */}
       <div className="card mt-6">
-        <h2 className="text-sm font-medium text-slate-300 mb-4">Historial de cargas</h2>
+        <h2 className="text-sm font-medium text-slate-600 mb-4">Historial de cargas</h2>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-xs text-slate-500 border-b border-slate-700">
+              <tr className="text-left text-xs text-slate-500 border-b border-slate-200">
                 <th className="pb-2 font-medium">Fecha</th>
                 <th className="pb-2 font-medium">Instancia</th>
                 <th className="pb-2 font-medium">Conversaciones</th>
@@ -219,17 +219,17 @@ export default function UploadPage() {
               {batches.map(b => {
                 const S = STATUS_MAP[b.status] || {};
                 return (
-                  <tr key={b._id} className="border-b border-slate-800 hover:bg-slate-800/30">
+                  <tr key={b._id} className="border-b border-slate-100 hover:bg-slate-50/80">
                     <td className="py-2.5">{new Date(b.date).toLocaleDateString('es-CL', { timeZone: 'UTC' })}</td>
                     <td className="py-2.5 capitalize">{b.instance}</td>
                     <td className="py-2.5">{b.totalConversations}</td>
-                    <td className="py-2.5 text-emerald-400">{b.evaluatedCount}</td>
-                    <td className="py-2.5 text-red-400">{b.errorCount || 0}</td>
+                    <td className="py-2.5 text-emerald-600">{b.evaluatedCount}</td>
+                    <td className="py-2.5 text-red-600">{b.errorCount || 0}</td>
                     <td className="py-2.5"><span className={`text-xs ${S.color}`}>{S.label}</span></td>
                     <td className="py-2.5 text-slate-500">{new Date(b.createdAt).toLocaleString('es-CL')}</td>
                     <td className="py-2.5">
                       <button
-                        className="text-xs text-red-400 hover:text-red-300 hover:underline"
+                        className="text-xs text-red-600 hover:text-red-300 hover:underline"
                         onClick={async () => {
                           const d = new Date(b.date).toLocaleDateString('es-CL', { timeZone: 'UTC' });
                           if (!confirm(`¿Eliminar la carga del ${d} (${b.instance})?\n\nEsto borrará ${b.totalConversations} conversaciones, sus mensajes y evaluaciones. Esta acción no se puede deshacer.`)) return;

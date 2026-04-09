@@ -52,15 +52,15 @@ export default function Agents() {
         <div className="card mb-4">
           <div className="grid grid-cols-4 gap-3">
             <div>
-              <label className="text-xs text-slate-400 block mb-1">ID Respond.io</label>
+              <label className="text-xs text-slate-500 block mb-1">ID Respond.io</label>
               <input className="input w-full text-sm" placeholder="324823" value={form.respondioId} onChange={e => setForm({ ...form, respondioId: e.target.value })} disabled={!!editing} />
             </div>
             <div>
-              <label className="text-xs text-slate-400 block mb-1">Nombre</label>
+              <label className="text-xs text-slate-500 block mb-1">Nombre</label>
               <input className="input w-full text-sm" placeholder="Juan Pérez" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
             </div>
             <div>
-              <label className="text-xs text-slate-400 block mb-1">Instancia</label>
+              <label className="text-xs text-slate-500 block mb-1">Instancia</label>
               <select className="select w-full text-sm" value={form.instance} onChange={e => setForm({ ...form, instance: e.target.value })}>
                 <option value="venezuela">Venezuela</option>
                 <option value="internacional">Internacional</option>
@@ -81,7 +81,7 @@ export default function Agents() {
       <div className="card overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left text-xs text-slate-500 border-b border-slate-700">
+            <tr className="text-left text-xs text-slate-500 border-b border-slate-200">
               <th className="pb-2 font-medium">ID Respond.io</th>
               <th className="pb-2 font-medium">Nombre</th>
               <th className="pb-2 font-medium">Instancia</th>
@@ -91,20 +91,20 @@ export default function Agents() {
           </thead>
           <tbody>
             {agents.map(a => (
-              <tr key={a._id} className="border-b border-slate-800">
-                <td className="py-2.5 font-mono text-slate-400">{a.respondioId}</td>
+              <tr key={a._id} className="border-b border-slate-100">
+                <td className="py-2.5 font-mono text-slate-500">{a.respondioId}</td>
                 <td className="py-2.5">{a.name}</td>
                 <td className="py-2.5 capitalize">{a.instance}</td>
                 <td className="py-2.5">
-                  <span className={`badge ${a.active ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-600/30 text-slate-500'}`}>
+                  <span className={`badge ${a.active ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
                     {a.active ? 'Activo' : 'Inactivo'}
                   </span>
                 </td>
                 <td className="py-2.5 flex gap-2">
-                  <button onClick={() => handleEdit(a)} className="p-1.5 rounded hover:bg-slate-700 text-slate-400 hover:text-gray-200">
+                  <button onClick={() => handleEdit(a)} className="p-1.5 rounded hover:bg-slate-200 text-slate-500 hover:text-slate-700">
                     <Pencil size={14} />
                   </button>
-                  <button onClick={() => handleDelete(a._id)} className="p-1.5 rounded hover:bg-slate-700 text-slate-400 hover:text-red-400">
+                  <button onClick={() => handleDelete(a._id)} className="p-1.5 rounded hover:bg-slate-200 text-slate-500 hover:text-red-600">
                     <Trash2 size={14} />
                   </button>
                 </td>

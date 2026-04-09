@@ -76,7 +76,7 @@ export default function SettingsPage() {
       </div>
 
       {saved && (
-        <div className="mb-4 px-4 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-sm">
+        <div className="mb-4 px-4 py-2 rounded-lg bg-emerald-500/10 border border-emerald-200 text-emerald-600 text-sm">
           Configuración guardada correctamente
         </div>
       )}
@@ -99,7 +99,7 @@ export default function SettingsPage() {
 
         <div className="grid grid-cols-2 gap-x-8 gap-y-4">
           <div>
-            <label className="text-xs text-slate-400 block mb-1">Mínimo de mensajes totales</label>
+            <label className="text-xs text-slate-500 block mb-1">Mínimo de mensajes totales</label>
             <input
               type="number" min="0" max="50" className="input w-full text-sm"
               value={f.minTotalMessages ?? 3}
@@ -108,7 +108,7 @@ export default function SettingsPage() {
             <p className="text-[11px] text-slate-600 mt-1">Conversaciones con menos mensajes se omiten. Recomendado: 3</p>
           </div>
           <div>
-            <label className="text-xs text-slate-400 block mb-1">Mínimo de mensajes del agente</label>
+            <label className="text-xs text-slate-500 block mb-1">Mínimo de mensajes del agente</label>
             <input
               type="number" min="0" max="50" className="input w-full text-sm"
               value={f.minAgentMessages ?? 1}
@@ -121,18 +121,18 @@ export default function SettingsPage() {
               type="checkbox" id="excludeBotOnly"
               checked={f.excludeBotOnly ?? true}
               onChange={e => update('filters', 'excludeBotOnly', e.target.checked)}
-              className="w-4 h-4 rounded border-slate-600 bg-jel-navy accent-jel-orange"
+              className="w-4 h-4 rounded border-slate-300 bg-white accent-jel-orange"
             />
-            <label htmlFor="excludeBotOnly" className="text-sm text-slate-300">Excluir conversaciones solo-bot (sin agente humano)</label>
+            <label htmlFor="excludeBotOnly" className="text-sm text-slate-600">Excluir conversaciones solo-bot (sin agente humano)</label>
           </div>
           <div className="flex items-center gap-3">
             <input
               type="checkbox" id="excludeUnresolved"
               checked={f.excludeUnresolved ?? false}
               onChange={e => update('filters', 'excludeUnresolved', e.target.checked)}
-              className="w-4 h-4 rounded border-slate-600 bg-jel-navy accent-jel-orange"
+              className="w-4 h-4 rounded border-slate-300 bg-white accent-jel-orange"
             />
-            <label htmlFor="excludeUnresolved" className="text-sm text-slate-300">Excluir conversaciones no resueltas</label>
+            <label htmlFor="excludeUnresolved" className="text-sm text-slate-600">Excluir conversaciones no resueltas</label>
           </div>
         </div>
       </div>
@@ -155,10 +155,10 @@ export default function SettingsPage() {
 
         {/* Main weights */}
         <div className="mb-6">
-          <h3 className="text-sm text-slate-400 mb-3">Score final = Cuantitativo × peso + Cualitativo × peso</h3>
+          <h3 className="text-sm text-slate-500 mb-3">Score final = Cuantitativo × peso + Cualitativo × peso</h3>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-xs text-slate-400 block mb-1">Peso cuantitativo (%)</label>
+              <label className="text-xs text-slate-500 block mb-1">Peso cuantitativo (%)</label>
               <input
                 type="number" min="0" max="100" className="input w-full text-sm"
                 value={w.quantitativeWeight ?? 60}
@@ -170,7 +170,7 @@ export default function SettingsPage() {
               />
             </div>
             <div>
-              <label className="text-xs text-slate-400 block mb-1">Peso cualitativo (%)</label>
+              <label className="text-xs text-slate-500 block mb-1">Peso cualitativo (%)</label>
               <input
                 type="number" min="0" max="100" className="input w-full text-sm"
                 value={w.qualitativeWeight ?? 40}
@@ -182,7 +182,7 @@ export default function SettingsPage() {
               />
             </div>
           </div>
-          <div className="mt-2 h-3 bg-slate-700 rounded-full overflow-hidden flex">
+          <div className="mt-2 h-3 bg-slate-200 rounded-full overflow-hidden flex">
             <div className="bg-jel-orange transition-all" style={{ width: `${w.quantitativeWeight ?? 60}%` }} />
             <div className="bg-blue-500 transition-all" style={{ width: `${w.qualitativeWeight ?? 40}%` }} />
           </div>
@@ -194,7 +194,7 @@ export default function SettingsPage() {
 
         {/* Sub-weights */}
         <div className="mb-6">
-          <h3 className="text-sm text-slate-400 mb-3">Sub-pesos cuantitativos (deben sumar 100)</h3>
+          <h3 className="text-sm text-slate-500 mb-3">Sub-pesos cuantitativos (deben sumar 100)</h3>
           <div className="grid grid-cols-5 gap-3">
             {[
               { key: 'firstResponseWeight', label: '1ra respuesta', def: 30 },
@@ -204,7 +204,7 @@ export default function SettingsPage() {
               { key: 'messageEfficiencyWeight', label: 'Eficiencia', def: 10 },
             ].map(({ key, label, def }) => (
               <div key={key}>
-                <label className="text-[11px] text-slate-400 block mb-1">{label}</label>
+                <label className="text-[11px] text-slate-500 block mb-1">{label}</label>
                 <input
                   type="number" min="0" max="100" className="input w-full text-sm"
                   value={w[key] ?? def}
@@ -216,18 +216,18 @@ export default function SettingsPage() {
           <p className="text-[11px] text-slate-600 mt-1">
             Total: {(w.firstResponseWeight ?? 30) + (w.resolutionTimeWeight ?? 25) + (w.responseRatioWeight ?? 20) + (w.avgResponseTimeWeight ?? 15) + (w.messageEfficiencyWeight ?? 10)}%
             {((w.firstResponseWeight ?? 30) + (w.resolutionTimeWeight ?? 25) + (w.responseRatioWeight ?? 20) + (w.avgResponseTimeWeight ?? 15) + (w.messageEfficiencyWeight ?? 10)) !== 100 &&
-              <span className="text-red-400 ml-2">Debe sumar 100</span>
+              <span className="text-red-600 ml-2">Debe sumar 100</span>
             }
           </p>
         </div>
 
         {/* Grade thresholds */}
         <div>
-          <h3 className="text-sm text-slate-400 mb-3">Umbrales de notas (score mínimo para cada nota)</h3>
+          <h3 className="text-sm text-slate-500 mb-3">Umbrales de notas (score mínimo para cada nota)</h3>
           <div className="grid grid-cols-4 gap-3">
             {['A', 'B', 'C', 'D'].map(g => (
               <div key={g}>
-                <label className="text-xs text-slate-400 block mb-1">Nota {g} ≥</label>
+                <label className="text-xs text-slate-500 block mb-1">Nota {g} ≥</label>
                 <input
                   type="number" min="0" max="100" className="input w-full text-sm"
                   value={w.grades?.[g] ?? { A: 90, B: 75, C: 60, D: 40 }[g]}
@@ -259,18 +259,18 @@ export default function SettingsPage() {
         {/* Model params */}
         <div className="grid grid-cols-3 gap-4 mb-6">
           <div>
-            <label className="text-xs text-slate-400 block mb-1">Modelo</label>
+            <label className="text-xs text-slate-500 block mb-1">Modelo</label>
             <select className="select w-full text-sm" value={ai.model || 'deepseek-chat'} onChange={e => update('ai', 'model', e.target.value)}>
               <option value="deepseek-chat">deepseek-chat</option>
               <option value="deepseek-reasoner">deepseek-reasoner</option>
             </select>
           </div>
           <div>
-            <label className="text-xs text-slate-400 block mb-1">Max tokens</label>
+            <label className="text-xs text-slate-500 block mb-1">Max tokens</label>
             <input type="number" min="500" max="4000" className="input w-full text-sm" value={ai.maxTokens || 1000} onChange={e => update('ai', 'maxTokens', parseInt(e.target.value))} />
           </div>
           <div>
-            <label className="text-xs text-slate-400 block mb-1">Temperatura</label>
+            <label className="text-xs text-slate-500 block mb-1">Temperatura</label>
             <input type="number" min="0" max="1" step="0.1" className="input w-full text-sm" value={ai.temperature || 0.3} onChange={e => update('ai', 'temperature', parseFloat(e.target.value))} />
             <p className="text-[11px] text-slate-600 mt-1">0 = determinista, 1 = creativo</p>
           </div>
@@ -278,7 +278,7 @@ export default function SettingsPage() {
 
         {/* Context */}
         <div className="mb-4">
-          <label className="text-xs text-slate-400 block mb-1">Contexto de la empresa</label>
+          <label className="text-xs text-slate-500 block mb-1">Contexto de la empresa</label>
           <textarea
             className="input w-full text-sm h-24 resize-y"
             value={ai.companyContext || ''}
@@ -290,7 +290,7 @@ export default function SettingsPage() {
 
         {/* Treatment rules */}
         <div className="mb-4">
-          <label className="text-xs text-slate-400 block mb-1">Reglas de trato al cliente</label>
+          <label className="text-xs text-slate-500 block mb-1">Reglas de trato al cliente</label>
           <textarea
             className="input w-full text-sm h-20 resize-y"
             value={ai.treatmentRules || ''}
@@ -301,7 +301,7 @@ export default function SettingsPage() {
 
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div>
-            <label className="text-xs text-slate-400 block mb-1">Qué penalizar</label>
+            <label className="text-xs text-slate-500 block mb-1">Qué penalizar</label>
             <textarea
               className="input w-full text-sm h-28 resize-y"
               value={ai.penalize || ''}
@@ -310,7 +310,7 @@ export default function SettingsPage() {
             />
           </div>
           <div>
-            <label className="text-xs text-slate-400 block mb-1">Qué premiar</label>
+            <label className="text-xs text-slate-500 block mb-1">Qué premiar</label>
             <textarea
               className="input w-full text-sm h-28 resize-y"
               value={ai.reward || ''}
@@ -322,7 +322,7 @@ export default function SettingsPage() {
 
         {/* Attention criteria */}
         <div>
-          <label className="text-xs text-slate-400 block mb-1">Criterios para "Requiere atención"</label>
+          <label className="text-xs text-slate-500 block mb-1">Criterios para "Requiere atención"</label>
           <textarea
             className="input w-full text-sm h-20 resize-y"
             value={ai.attentionCriteria || ''}

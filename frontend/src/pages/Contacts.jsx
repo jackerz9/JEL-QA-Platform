@@ -114,27 +114,27 @@ export default function Contacts() {
         <div className="card mb-4">
           <div className="grid grid-cols-7 gap-3">
             <div>
-              <label className="text-xs text-slate-400 block mb-1">ID Respond.io</label>
+              <label className="text-xs text-slate-500 block mb-1">ID Respond.io</label>
               <input className="input w-full text-sm" value={form.respondioId} onChange={e => setForm({ ...form, respondioId: e.target.value })} disabled={!!editing} />
             </div>
             <div>
-              <label className="text-xs text-slate-400 block mb-1">Nombre</label>
+              <label className="text-xs text-slate-500 block mb-1">Nombre</label>
               <input className="input w-full text-sm" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
             </div>
             <div>
-              <label className="text-xs text-slate-400 block mb-1">Teléfono</label>
+              <label className="text-xs text-slate-500 block mb-1">Teléfono</label>
               <input className="input w-full text-sm" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
             </div>
             <div>
-              <label className="text-xs text-slate-400 block mb-1">Email</label>
+              <label className="text-xs text-slate-500 block mb-1">Email</label>
               <input className="input w-full text-sm" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
             </div>
             <div>
-              <label className="text-xs text-slate-400 block mb-1">País</label>
+              <label className="text-xs text-slate-500 block mb-1">País</label>
               <input className="input w-full text-sm" value={form.country} onChange={e => setForm({ ...form, country: e.target.value })} />
             </div>
             <div>
-              <label className="text-xs text-slate-400 block mb-1">Usuario JEL</label>
+              <label className="text-xs text-slate-500 block mb-1">Usuario JEL</label>
               <input className="input w-full text-sm" value={form.username} onChange={e => setForm({ ...form, username: e.target.value })} />
             </div>
             <div className="flex items-end gap-2">
@@ -152,7 +152,7 @@ export default function Contacts() {
       <div className="card overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left text-xs text-slate-500 border-b border-slate-700">
+            <tr className="text-left text-xs text-slate-500 border-b border-slate-200">
               <th className="pb-2 font-medium">ID</th>
               <th className="pb-2 font-medium">Nombre</th>
               <th className="pb-2 font-medium">Teléfono</th>
@@ -164,16 +164,16 @@ export default function Contacts() {
           </thead>
           <tbody>
             {contacts.map(c => (
-              <tr key={c._id} className="border-b border-slate-800">
-                <td className="py-2.5 font-mono text-xs text-slate-400">{c.respondioId}</td>
+              <tr key={c._id} className="border-b border-slate-100">
+                <td className="py-2.5 font-mono text-xs text-slate-500">{c.respondioId}</td>
                 <td className="py-2.5">{c.name || '—'}</td>
-                <td className="py-2.5 text-slate-400">{c.phone || '—'}</td>
-                <td className="py-2.5 text-slate-400 text-xs">{c.email || '—'}</td>
+                <td className="py-2.5 text-slate-500">{c.phone || '—'}</td>
+                <td className="py-2.5 text-slate-500 text-xs">{c.email || '—'}</td>
                 <td className="py-2.5">{c.country || '—'}</td>
                 <td className="py-2.5 font-mono text-xs">{c.username || '—'}</td>
                 <td className="py-2.5 flex gap-2">
-                  <button onClick={() => handleEdit(c)} className="p-1.5 rounded hover:bg-slate-700 text-slate-400 hover:text-gray-200"><Pencil size={14} /></button>
-                  <button onClick={() => handleDelete(c._id)} className="p-1.5 rounded hover:bg-slate-700 text-slate-400 hover:text-red-400"><Trash2 size={14} /></button>
+                  <button onClick={() => handleEdit(c)} className="p-1.5 rounded hover:bg-slate-200 text-slate-500 hover:text-slate-700"><Pencil size={14} /></button>
+                  <button onClick={() => handleDelete(c._id)} className="p-1.5 rounded hover:bg-slate-200 text-slate-500 hover:text-red-600"><Trash2 size={14} /></button>
                 </td>
               </tr>
             ))}
@@ -184,7 +184,7 @@ export default function Contacts() {
         </table>
 
         {total > limit && (
-          <div className="flex justify-between items-center mt-4 pt-4 border-t border-slate-700">
+          <div className="flex justify-between items-center mt-4 pt-4 border-t border-slate-200">
             <span className="text-xs text-slate-500">{skip + 1}-{Math.min(skip + limit, total)} de {total}</span>
             <div className="flex gap-2">
               <button className="btn-secondary text-xs" disabled={skip === 0} onClick={() => setSkip(Math.max(0, skip - limit))}>Anterior</button>
