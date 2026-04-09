@@ -52,10 +52,10 @@ router.post('/',
       });
     }
 
-    // Create batch
+    // Create batch - append T12:00:00 to avoid timezone shift
     const batch = await UploadBatch.create({
       instance,
-      date: new Date(date),
+      date: new Date(date + 'T12:00:00Z'),
       conversationsFile: req.files.conversations[0].filename,
       messagesFile: req.files.messages[0].filename,
       status: 'parsing',

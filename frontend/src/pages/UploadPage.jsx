@@ -220,7 +220,7 @@ export default function UploadPage() {
                 const S = STATUS_MAP[b.status] || {};
                 return (
                   <tr key={b._id} className="border-b border-slate-800 hover:bg-slate-800/30">
-                    <td className="py-2.5">{new Date(b.date).toLocaleDateString('es-CL')}</td>
+                    <td className="py-2.5">{new Date(b.date).toLocaleDateString('es-CL', { timeZone: 'UTC' })}</td>
                     <td className="py-2.5 capitalize">{b.instance}</td>
                     <td className="py-2.5">{b.totalConversations}</td>
                     <td className="py-2.5 text-emerald-400">{b.evaluatedCount}</td>
@@ -231,7 +231,7 @@ export default function UploadPage() {
                       <button
                         className="text-xs text-red-400 hover:text-red-300 hover:underline"
                         onClick={async () => {
-                          const d = new Date(b.date).toLocaleDateString('es-CL');
+                          const d = new Date(b.date).toLocaleDateString('es-CL', { timeZone: 'UTC' });
                           if (!confirm(`¿Eliminar la carga del ${d} (${b.instance})?\n\nEsto borrará ${b.totalConversations} conversaciones, sus mensajes y evaluaciones. Esta acción no se puede deshacer.`)) return;
                           try {
                             const res = await fetch(`/api/upload/${b._id}`, {
