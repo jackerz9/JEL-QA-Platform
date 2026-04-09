@@ -56,7 +56,7 @@ async function evaluateQualitative(messages, conversation, categories = [], aiCo
   const maxTokens = ai.maxTokens || 1000;
   const temperature = ai.temperature || 0.3;
 
-  // Build compact category list grouped
+  // Build compact category list grouped - compress payment categories
   let categoryList;
   if (categories.length > 0) {
     const grouped = {};
@@ -65,9 +65,24 @@ async function evaluateQualitative(messages, conversation, categories = [], aiCo
       if (!grouped[g]) grouped[g] = [];
       grouped[g].push(c.name || c.code);
     });
-    categoryList = Object.entries(grouped)
-      .map(([group, names]) => `[${group}]: ${names.join(' | ')}`)
-      .join('\n');
+
+    // Compress payment groups (CLP, PEN, MEX, ECU share same sub-types)
+    const paymentGroups = ['CLP', 'PEN', 'MEX', 'ECU'];
+    const hasPayment = paymentGroups.filter(g => grouped[g]);
+    if (hasPayment.length > 1) {
+      // Take one as template, list countries
+      const template = grouped[hasPayment[0]];
+      const subTypes = template.map(n => n.replace(new RegExp(`^${hasPayment[0]} - `), ''));
+      const compressed = `[Pagos por país (${hasPayment.join(', ')})]: Para cada país: ${subTypes.join(' | ')}`;
+      hasPayment.forEach(g => delete grouped[g]);
+      categoryList = Object.entries(grouped)
+        .map(([group, names]) => `[${group}]: ${names.join(' | ')}`)
+        .join('\n') + '\n' + compressed;
+    } else {
+      categoryList = Object.entries(grouped)
+        .map(([group, names]) => `[${group}]: ${names.join(' | ')}`)
+        .join('\n');
+    }
   } else {
     categoryList = 'Sin categorías disponibles.';
   }

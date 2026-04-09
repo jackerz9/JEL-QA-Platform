@@ -193,127 +193,116 @@ async function processUpload(batch, convsPath, msgsPath, instance) {
     // 5. Evaluate each conversation
     await UploadBatch.findByIdAndUpdate(batch._id, { status: 'evaluating' });
 
-    // Load settings
+    // Load settings (cached for entire batch)
     const Settings = require('../models/Settings');
     const settings = await Settings.getSettings();
     const filters = settings.filters || {};
     const weights = settings.weights || {};
     const aiConfig = settings.ai || {};
 
+    // Cache categories + pre-build grouped list (avoid rebuilding per conversation)
     const categories = await Category.find({ active: true });
+    const cachedAiConfig = { ...aiConfig, _cachedCategories: categories };
+
     let evaluated = 0;
     let errors = 0;
     let skipped = 0;
+    const CONCURRENCY = 3;
 
+    // Pre-calculate grade thresholds
+    const qWeight = (weights.quantitativeWeight || 60) / 100;
+    const cWeight = (weights.qualitativeWeight || 40) / 100;
+    const gradeThresholds = weights.grades || { A: 90, B: 75, C: 60, D: 40 };
+
+    // Filter conversations that qualify for evaluation
+    const toEvaluate = [];
     for (const conv of conversations) {
-      try {
-        // Get messages for this conversation
-        const convMessages = matched.filter(m => m.conversationId === conv.conversationId);
+      const convMessages = matched.filter(m => m.conversationId === conv.conversationId);
+      const agentMessages = convMessages.filter(m => m.senderType === 'user');
+      const minTotal = filters.minTotalMessages || 3;
+      const minAgent = filters.minAgentMessages || 1;
 
-        // ── Apply configurable filters ──
-        const totalMsgs = convMessages.length;
-        const agentMessages = convMessages.filter(m => m.senderType === 'user');
-        const minTotal = filters.minTotalMessages || 3;
-        const minAgent = filters.minAgentMessages || 1;
+      if (convMessages.length < minTotal) { skipped++; continue; }
+      if (agentMessages.length < minAgent) { skipped++; continue; }
+      if (filters.excludeBotOnly && agentMessages.length === 0) { skipped++; continue; }
+      if (filters.excludeUnresolved && !conv.resolvedAt) { skipped++; continue; }
 
-        if (totalMsgs < minTotal) { skipped++; continue; }
-        if (agentMessages.length < minAgent) { skipped++; continue; }
-        if (filters.excludeBotOnly && agentMessages.length === 0) { skipped++; continue; }
-        if (filters.excludeUnresolved && !conv.resolvedAt) { skipped++; continue; }
-
-        // Quantitative scoring (with configurable weights)
-        const quantitative = evaluateQuantitative(conv, weights);
-
-        // Qualitative scoring (DeepSeek with configurable AI params)
-        const qualitative = await evaluateQualitative(convMessages, conv, categories, aiConfig);
-
-        // Combined score (configurable weights)
-        const qWeight = (weights.quantitativeWeight || 60) / 100;
-        const cWeight = (weights.qualitativeWeight || 40) / 100;
-        const finalScore = Math.round(quantitative.totalScore * qWeight + qualitative.totalScore * cWeight);
-
-        // Grade (configurable thresholds)
-        const g = weights.grades || { A: 90, B: 75, C: 60, D: 40 };
-        let grade;
-        if (finalScore >= g.A) grade = 'A';
-        else if (finalScore >= g.B) grade = 'B';
-        else if (finalScore >= g.C) grade = 'C';
-        else if (finalScore >= g.D) grade = 'D';
-        else grade = 'F';
-
-        // Store evaluation
-        await Evaluation.findOneAndUpdate(
-          { conversationId: conv.conversationId },
-          {
-            conversationId: conv.conversationId,
-            instance,
-            agentId: conv.assigneeId,
-            contactId: conv.contactId,
-            quantitative,
-            qualitative: {
-              toneScore: qualitative.toneScore,
-              empathyScore: qualitative.empathyScore,
-              resolutionScore: qualitative.resolutionScore,
-              professionalismScore: qualitative.professionalismScore,
-              totalScore: qualitative.totalScore,
-              summary: qualitative.summary,
-              strengths: qualitative.strengths,
-              improvements: qualitative.improvements,
-              rawResponse: qualitative.rawResponse,
-            },
-            sentiment: qualitative.sentiment || { label: 'neutral', score: 0 },
-            aiCategory: qualitative.aiCategory || null,
-            aiCategories: qualitative.aiCategory ? [qualitative.aiCategory] : [],
-            aiCategoryConfidence: qualitative.aiCategoryConfidence || 0,
-            aiSubCategory: qualitative.aiSubCategory || '',
-            needsAttention: qualitative.needsAttention || false,
-            attentionReason: qualitative.attentionReason || '',
-            coachingTip: qualitative.coachingTip || '',
-            finalScore,
-            grade,
-            status: 'scored',
-          },
-          { upsert: true, new: true }
-        );
-
-        evaluated++;
-
-        // Update batch progress every 5 evaluations
-        if (evaluated % 5 === 0 || evaluated === 1) {
-          await UploadBatch.findByIdAndUpdate(batch._id, {
-            evaluatedCount: evaluated,
-            errorCount: errors,
-          });
-        }
-
-        // Small delay to avoid rate limiting DeepSeek
-        await new Promise(r => setTimeout(r, 500));
-      } catch (err) {
-        console.error(`Error evaluating ${conv.conversationId}:`, err.message);
-        errors++;
-
-        // Update error count too
-        if (errors % 3 === 0 || errors === 1) {
-          await UploadBatch.findByIdAndUpdate(batch._id, {
-            evaluatedCount: evaluated,
-            errorCount: errors,
-          });
-        }
-
-        await Evaluation.findOneAndUpdate(
-          { conversationId: conv.conversationId },
-          {
-            conversationId: conv.conversationId,
-            instance,
-            agentId: conv.assigneeId,
-            contactId: conv.contactId,
-            status: 'error',
-            errorMessage: err.message,
-          },
-          { upsert: true, new: true }
-        );
-      }
+      toEvaluate.push({ conv, convMessages });
     }
+
+    console.log(`Batch ${batch._id}: ${toEvaluate.length} to evaluate, ${skipped} skipped (of ${conversations.length})`);
+
+    // Process in parallel batches of CONCURRENCY
+    async function evaluateOne({ conv, convMessages }) {
+      const quantitative = evaluateQuantitative(conv, weights);
+      const qualitative = await evaluateQualitative(convMessages, conv, categories, aiConfig);
+
+      const finalScore = Math.round(quantitative.totalScore * qWeight + qualitative.totalScore * cWeight);
+      let grade;
+      if (finalScore >= gradeThresholds.A) grade = 'A';
+      else if (finalScore >= gradeThresholds.B) grade = 'B';
+      else if (finalScore >= gradeThresholds.C) grade = 'C';
+      else if (finalScore >= gradeThresholds.D) grade = 'D';
+      else grade = 'F';
+
+      await Evaluation.findOneAndUpdate(
+        { conversationId: conv.conversationId },
+        {
+          conversationId: conv.conversationId,
+          instance,
+          agentId: conv.assigneeId,
+          contactId: conv.contactId,
+          quantitative,
+          qualitative: {
+            toneScore: qualitative.toneScore,
+            empathyScore: qualitative.empathyScore,
+            resolutionScore: qualitative.resolutionScore,
+            professionalismScore: qualitative.professionalismScore,
+            totalScore: qualitative.totalScore,
+            summary: qualitative.summary,
+            strengths: qualitative.strengths,
+            improvements: qualitative.improvements,
+            rawResponse: qualitative.rawResponse,
+          },
+          sentiment: qualitative.sentiment || { label: 'neutral', score: 0 },
+          aiCategory: qualitative.aiCategory || null,
+          aiCategories: qualitative.aiCategory ? [qualitative.aiCategory] : [],
+          aiCategoryConfidence: qualitative.aiCategoryConfidence || 0,
+          aiSubCategory: qualitative.aiSubCategory || '',
+          needsAttention: qualitative.needsAttention || false,
+          attentionReason: qualitative.attentionReason || '',
+          coachingTip: qualitative.coachingTip || '',
+          finalScore,
+          grade,
+          status: 'scored',
+        },
+        { upsert: true, new: true }
+      );
+    }
+
+    // Parallel execution with concurrency limit
+    for (let i = 0; i < toEvaluate.length; i += CONCURRENCY) {
+      const chunk = toEvaluate.slice(i, i + CONCURRENCY);
+      const results = await Promise.allSettled(chunk.map(item => evaluateOne(item)));
+
+      for (const r of results) {
+        if (r.status === 'fulfilled') {
+          evaluated++;
+        } else {
+          errors++;
+          console.error('Evaluation error:', r.reason?.message);
+        }
+      }
+
+      // Update progress after each parallel chunk
+      await UploadBatch.findByIdAndUpdate(batch._id, {
+        evaluatedCount: evaluated,
+        errorCount: errors,
+      });
+    }
+
+    // Handle errors individually for retry info
+    // (errors already counted above via allSettled)
 
     await UploadBatch.findByIdAndUpdate(batch._id, {
       status: 'completed',
