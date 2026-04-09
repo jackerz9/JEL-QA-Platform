@@ -9,14 +9,28 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   const { instance, agentId, grade, dateFrom, dateTo, limit = 50, skip = 0, sort = '-finalScore' } = req.query;
 
+  // If filtering by date, we need to find matching conversation IDs first
+  let conversationIdFilter = null;
+  if (dateFrom || dateTo) {
+    const convQuery = {};
+    convQuery.startedAt = {};
+    if (dateFrom) convQuery.startedAt.$gte = new Date(dateFrom);
+    if (dateTo) {
+      const endDate = new Date(dateTo);
+      endDate.setHours(23, 59, 59, 999);
+      convQuery.startedAt.$lte = endDate;
+    }
+    if (instance) convQuery.instance = instance;
+    const convIds = await Conversation.find(convQuery, { conversationId: 1 });
+    conversationIdFilter = convIds.map(c => c.conversationId);
+  }
+
   const query = { status: 'scored' };
   if (instance) query.instance = instance;
   if (agentId) query.agentId = agentId;
   if (grade) query.grade = grade;
-  if (dateFrom || dateTo) {
-    query.evaluatedAt = {};
-    if (dateFrom) query.evaluatedAt.$gte = new Date(dateFrom);
-    if (dateTo) query.evaluatedAt.$lte = new Date(dateTo);
+  if (conversationIdFilter !== null) {
+    query.conversationId = { $in: conversationIdFilter };
   }
 
   const [evaluations, total] = await Promise.all([
