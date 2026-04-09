@@ -1,7 +1,36 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ChevronLeft, ChevronRight, User, Bot, MessageSquare } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, User, Bot, MessageSquare, X } from 'lucide-react';
 import { api } from '../utils/api';
+
+function ImageModal({ url, onClose }) {
+  if (!url) return null;
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div className="relative max-w-[90vw] max-h-[90vh]" onClick={e => e.stopPropagation()}>
+        <button
+          onClick={onClose}
+          className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-white shadow-lg flex items-center justify-center hover:bg-slate-100 transition-colors z-10"
+        >
+          <X size={16} className="text-slate-600" />
+        </button>
+        <img
+          src={url}
+          alt="Imagen adjunta"
+          className="max-w-[90vw] max-h-[85vh] object-contain rounded-xl shadow-2xl"
+        />
+        <div className="text-center mt-3">
+          <a href={url} target="_blank" rel="noopener noreferrer" className="text-xs text-white/70 hover:text-white underline">
+            Abrir en nueva pestaña
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function ScoreBar({ label, score, max = 100 }) {
   const color = score >= 75 ? '#10B981' : score >= 50 ? '#F59E0B' : '#EF4444';
@@ -16,7 +45,7 @@ function ScoreBar({ label, score, max = 100 }) {
   );
 }
 
-function ChatBubble({ msg }) {
+function ChatBubble({ msg, onImageClick }) {
   const isAgent = msg.senderType === 'user';
   const isBot = msg.senderType === 'workflow';
   const isContact = msg.senderType === 'contact';
@@ -82,15 +111,15 @@ function ChatBubble({ msg }) {
       <div className={`max-w-[70%] ${isContact ? '' : 'order-first'}`}>
         <div className={`rounded-xl overflow-hidden ${!imageUrl ? 'px-3.5 py-2' : 'p-1'} text-sm leading-relaxed ${bubbleClass}`}>
           {imageUrl && (
-            <a href={imageUrl} target="_blank" rel="noopener noreferrer">
+            <div className="cursor-pointer" onClick={() => onImageClick && onImageClick(imageUrl)}>
               <img
                 src={imageUrl}
                 alt="Imagen adjunta"
-                className="rounded-lg max-w-full max-h-[240px] object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                className="rounded-lg max-w-full max-h-[240px] object-cover hover:opacity-90 transition-opacity"
                 onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block'; }}
               />
               <span style={{ display: 'none' }} className="text-xs text-slate-500 px-2 py-1 block">Imagen no disponible</span>
-            </a>
+            </div>
           )}
           {fileUrl && !imageUrl && (
             <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-blue-600 hover:underline">
@@ -122,6 +151,7 @@ export default function EvaluationDetail() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [reevaling, setReevaling] = useState(false);
+  const [modalImage, setModalImage] = useState(null);
 
   // Navigation list from sessionStorage
   const evalList = useMemo(() => {
@@ -240,7 +270,7 @@ export default function EvaluationDetail() {
         <div className="col-span-2 card max-h-[600px] overflow-y-auto">
           <h3 className="text-sm font-medium text-slate-600 mb-4">Conversación</h3>
           <div className="space-y-3">
-            {messages.map(msg => <ChatBubble key={msg._id || msg.messageId} msg={msg} />)}
+            {messages.map(msg => <ChatBubble key={msg._id || msg.messageId} msg={msg} onImageClick={setModalImage} />)}
             {messages.length === 0 && <p className="text-sm text-slate-500 text-center py-8">Sin mensajes</p>}
           </div>
         </div>
@@ -377,6 +407,7 @@ export default function EvaluationDetail() {
           </div>
         </div>
       </div>
+      <ImageModal url={modalImage} onClose={() => setModalImage(null)} />
     </div>
   );
 }
