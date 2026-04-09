@@ -20,11 +20,57 @@ function ChatBubble({ msg }) {
   const isAgent = msg.senderType === 'user';
   const isBot = msg.senderType === 'workflow';
   const isContact = msg.senderType === 'contact';
-  const text = msg.content?.text || msg.rawContent || '';
   const d = new Date(msg.timestamp);
   const time = `${String(d.getUTCHours()).padStart(2,'0')}:${String(d.getUTCMinutes()).padStart(2,'0')}:${String(d.getUTCSeconds()).padStart(2,'0')}`;
 
   if (msg.senderType === 'echo') return null;
+
+  // Parse content - handle text, attachments, images
+  const content = msg.content || {};
+  let text = content.text || '';
+  let attachment = content.attachment || null;
+  let imageUrl = null;
+  let fileUrl = null;
+  let fileName = null;
+
+  // If content is a raw string, try parsing
+  if (!text && msg.rawContent) {
+    try {
+      const parsed = JSON.parse(msg.rawContent);
+      text = parsed.text || '';
+      attachment = parsed.attachment || null;
+    } catch {
+      text = msg.rawContent;
+    }
+  }
+
+  // Extract image/file from attachment
+  if (attachment) {
+    if (attachment.type === 'image' && attachment.url) {
+      imageUrl = attachment.url;
+    } else if (attachment.type === 'video' && attachment.url) {
+      fileUrl = attachment.url;
+      fileName = 'Video adjunto';
+    } else if (attachment.type === 'file' && attachment.url) {
+      fileUrl = attachment.url;
+      fileName = attachment.fileName || 'Archivo adjunto';
+    } else if (attachment.url) {
+      // Generic attachment with URL
+      const url = attachment.url;
+      if (/\.(jpg|jpeg|png|gif|webp)(\?|$)/i.test(url)) {
+        imageUrl = url;
+      } else {
+        fileUrl = url;
+        fileName = attachment.fileName || 'Archivo adjunto';
+      }
+    }
+  }
+
+  const bubbleClass = isContact
+    ? 'bg-slate-100 text-slate-700 rounded-tl-sm'
+    : isBot
+    ? 'bg-slate-100 text-slate-600 rounded-tr-sm'
+    : 'bg-orange-50 text-orange-800 rounded-tr-sm border border-orange-100';
 
   return (
     <div className={`flex gap-2 ${isContact ? 'justify-start' : 'justify-end'}`}>
@@ -34,18 +80,30 @@ function ChatBubble({ msg }) {
         </div>
       )}
       <div className={`max-w-[70%] ${isContact ? '' : 'order-first'}`}>
-        <div
-          className={`rounded-xl px-3.5 py-2 text-sm leading-relaxed ${
-            isContact
-              ? 'bg-slate-200 text-slate-700 rounded-tl-sm'
-              : isBot
-              ? 'bg-slate-200 text-slate-600 rounded-tr-sm'
-              : 'bg-orange-50 text-orange-800 rounded-tr-sm'
-          }`}
-        >
-          {text}
+        <div className={`rounded-xl overflow-hidden ${!imageUrl ? 'px-3.5 py-2' : 'p-1'} text-sm leading-relaxed ${bubbleClass}`}>
+          {imageUrl && (
+            <a href={imageUrl} target="_blank" rel="noopener noreferrer">
+              <img
+                src={imageUrl}
+                alt="Imagen adjunta"
+                className="rounded-lg max-w-full max-h-[240px] object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block'; }}
+              />
+              <span style={{ display: 'none' }} className="text-xs text-slate-500 px-2 py-1 block">Imagen no disponible</span>
+            </a>
+          )}
+          {fileUrl && !imageUrl && (
+            <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-blue-600 hover:underline">
+              <span className="text-lg">📎</span>
+              <span className="text-sm">{fileName}</span>
+            </a>
+          )}
+          {text && <p className={imageUrl ? 'px-2.5 py-1.5 text-sm' : ''}>{text}</p>}
+          {!text && !imageUrl && !fileUrl && (
+            <p className="text-xs text-slate-500 italic">Contenido no disponible</p>
+          )}
         </div>
-        <p className={`text-[10px] text-slate-600 mt-0.5 ${isContact ? '' : 'text-right'}`}>
+        <p className={`text-[10px] text-slate-500 mt-0.5 ${isContact ? '' : 'text-right'}`}>
           {isBot ? 'Bot' : isAgent ? 'Agente' : 'Cliente'} · {time}
         </p>
       </div>
