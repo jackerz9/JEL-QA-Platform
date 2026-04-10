@@ -200,44 +200,26 @@ const CATEGORIES = [
   { group: 'Productos JEL', name: 'Recompensa Diaria - Dudas' },
   { group: 'Productos JEL', name: 'Recompensa Diaria - Inconveniente / No activado' },
   { group: 'Productos JEL', name: 'Recompensa Diaria - Premio no acreditado' },
-  // Pago Móvil
+  // Pago Móvil (Venezuela)
   { group: 'Pago Móvil', name: 'PM - Problemas en la plataforma' },
   { group: 'Pago Móvil', name: 'PM - Retraso en acreditación' },
   { group: 'Pago Móvil', name: 'PM - Información sobre sistema' },
   { group: 'Pago Móvil', name: 'PM - Cambiar número registrado' },
   { group: 'Pago Móvil', name: 'PM - No recibe el código de registro' },
   { group: 'Pago Móvil', name: 'PM - Información sobre retiro' },
-  // TDC / Zelle
+  // TDC / Zelle (Venezuela)
   { group: 'TDC/Zelle', name: 'TDC - Información General' },
   { group: 'TDC/Zelle', name: 'TDC - Información como tramitar retiros y transferencias' },
   { group: 'TDC/Zelle', name: 'TDC - Estatus de Transferencias' },
   { group: 'TDC/Zelle', name: 'TDC - Inconveniente con transferencia' },
   { group: 'TDC/Zelle', name: 'Zelle - Estatus de Retiro' },
   { group: 'TDC/Zelle', name: 'Zelle - Inconveniente con Retiro' },
-  // CLP
-  { group: 'CLP', name: 'CLP - Información General' },
-  { group: 'CLP', name: 'CLP - Información como tramitar retiros y transferencias' },
-  { group: 'CLP', name: 'CLP - Estatus de Transferencias' },
-  { group: 'CLP', name: 'CLP - Estatus de Retiro' },
-  { group: 'CLP', name: 'CLP - Inconveniente con transferencia' },
-  // PEN
-  { group: 'PEN', name: 'PEN - Información General' },
-  { group: 'PEN', name: 'PEN - Información como tramitar retiros y transferencias' },
-  { group: 'PEN', name: 'PEN - Estatus de Transferencias' },
-  { group: 'PEN', name: 'PEN - Estatus de Retiro' },
-  { group: 'PEN', name: 'PEN - Inconveniente con transferencia' },
-  // ECU
-  { group: 'ECU', name: 'ECU - Información General' },
-  { group: 'ECU', name: 'ECU - Información como tramitar retiros y transferencias' },
-  { group: 'ECU', name: 'ECU - Estatus de Transferencias' },
-  { group: 'ECU', name: 'ECU - Estatus de Retiro' },
-  { group: 'ECU', name: 'ECU - Inconveniente con transferencia' },
-  // MEX
-  { group: 'MEX', name: 'MEX - Información General' },
-  { group: 'MEX', name: 'MEX - Información como tramitar retiros y transferencias' },
-  { group: 'MEX', name: 'MEX - Estatus de Transferencias' },
-  { group: 'MEX', name: 'MEX - Estatus de Retiro' },
-  { group: 'MEX', name: 'MEX - Inconveniente con transferencia' },
+  // Pagos Internacional (unificado - antes CLP/PEN/ECU/MEX)
+  { group: 'Pagos', name: 'Pagos - Información General' },
+  { group: 'Pagos', name: 'Pagos - Información como tramitar retiros y transferencias' },
+  { group: 'Pagos', name: 'Pagos - Estatus de Transferencias' },
+  { group: 'Pagos', name: 'Pagos - Estatus de Retiro' },
+  { group: 'Pagos', name: 'Pagos - Inconveniente con transferencia' },
 ];
 
 async function seed() {
@@ -272,7 +254,18 @@ async function seed() {
       { upsert: true }
     );
   }
-  console.log(`✅ ${CATEGORIES.length} categories`);
+  // Delete old country-specific payment categories
+  const deleted = await Category.deleteMany({
+    $or: [
+      { code: /^CLP - / }, { code: /^PEN - / }, { code: /^ECU - / }, { code: /^MEX - / },
+      { name: /^CLP - / }, { name: /^PEN - / }, { name: /^ECU - / }, { name: /^MEX - / },
+      { group: { $in: ['CLP', 'PEN', 'ECU', 'MEX'] } },
+      { code: /^\d+\./ }, // old format "0. General - ..."
+    ],
+  });
+  if (deleted.deletedCount > 0) console.log(`🗑️  Deleted ${deleted.deletedCount} old/duplicate categories`);
+  const remaining = await Category.countDocuments({ active: true });
+  console.log(`✅ ${remaining} active categories (${CATEGORIES.length} in seed)`);
 
   console.log('\n🎉 Seed complete!');
   await mongoose.disconnect();

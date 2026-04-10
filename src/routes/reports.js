@@ -8,7 +8,7 @@ const router = express.Router();
  * Reporte completo de un agente en un día o rango
  */
 router.get('/agent-daily', async (req, res) => {
-  const { agentId, dateFrom, dateTo, instance } = req.query;
+  const { agentId, dateFrom, dateTo, instance, channel } = req.query;
 
   if (!agentId || !dateFrom) {
     return res.status(400).json({ error: 'agentId and dateFrom are required' });
@@ -21,7 +21,7 @@ router.get('/agent-daily', async (req, res) => {
   if (instance) match.instance = instance;
 
   // Date range - filter by conversation date
-  const convIds = await getConvIdsForDateRange(dateFrom, dateTo || dateFrom, instance);
+  const convIds = await getConvIdsForFilters(dateFrom, dateTo || dateFrom, instance, channel);
   if (convIds !== null) match.conversationId = { $in: convIds };
 
   const evaluations = await Evaluation.find(match).sort({ finalScore: 1 });
@@ -172,19 +172,26 @@ router.get('/agent-daily', async (req, res) => {
 });
 
 /**
- * Helper: get conversation IDs matching a date range (by conversation startedAt, not evaluatedAt)
+ * Helper: get conversation IDs matching filters (date range, instance, channel)
  */
-async function getConvIdsForDateRange(dateFrom, dateTo, instance) {
-  if (!dateFrom && !dateTo) return null; // null = no filter
+async function getConvIdsForFilters(dateFrom, dateTo, instance, channel) {
   const query = {};
-  query.startedAt = {};
-  if (dateFrom) query.startedAt.$gte = new Date(dateFrom);
-  if (dateTo) {
-    const end = new Date(dateTo);
-    end.setHours(23, 59, 59, 999);
-    query.startedAt.$lte = end;
+  let hasFilter = false;
+
+  if (dateFrom || dateTo) {
+    query.startedAt = {};
+    if (dateFrom) { query.startedAt.$gte = new Date(dateFrom); hasFilter = true; }
+    if (dateTo) {
+      const end = new Date(dateTo);
+      end.setHours(23, 59, 59, 999);
+      query.startedAt.$lte = end;
+      hasFilter = true;
+    }
   }
-  if (instance) query.instance = instance;
+  if (instance) { query.instance = instance; hasFilter = true; }
+  if (channel) { query.openedByChannel = channel; hasFilter = true; }
+
+  if (!hasFilter) return null; // null = no filter
   const convs = await Conversation.find(query, { conversationId: 1 });
   return convs.map(c => c.conversationId);
 }
@@ -194,13 +201,13 @@ async function getConvIdsForDateRange(dateFrom, dateTo, instance) {
  * Resumen de todos los agentes para un período (para la lista de reportes)
  */
 router.get('/agents-summary', async (req, res) => {
-  const { dateFrom, dateTo, instance } = req.query;
+  const { dateFrom, dateTo, instance, channel } = req.query;
 
   const match = { status: 'scored' };
   if (instance) match.instance = instance;
 
   // Filter by conversation date, not evaluation date
-  const convIds = await getConvIdsForDateRange(dateFrom, dateTo, instance);
+  const convIds = await getConvIdsForFilters(dateFrom, dateTo, instance, channel);
   if (convIds !== null) match.conversationId = { $in: convIds };
 
   const stats = await Evaluation.aggregate([
@@ -239,10 +246,10 @@ router.get('/agents-summary', async (req, res) => {
  * GET /api/reports/categories
  */
 router.get('/categories', async (req, res) => {
-  const { dateFrom, dateTo, instance } = req.query;
+  const { dateFrom, dateTo, instance, channel } = req.query;
   const match = { status: 'scored' };
   if (instance) match.instance = instance;
-  const convIds = await getConvIdsForDateRange(dateFrom, dateTo, instance);
+  const convIds = await getConvIdsForFilters(dateFrom, dateTo, instance, channel);
   if (convIds !== null) match.conversationId = { $in: convIds };
 
   const stats = await Evaluation.aggregate([
@@ -271,10 +278,10 @@ router.get('/categories', async (req, res) => {
  * GET /api/reports/sentiment
  */
 router.get('/sentiment', async (req, res) => {
-  const { dateFrom, dateTo, instance } = req.query;
+  const { dateFrom, dateTo, instance, channel } = req.query;
   const match = { status: 'scored' };
   if (instance) match.instance = instance;
-  const convIds = await getConvIdsForDateRange(dateFrom, dateTo, instance);
+  const convIds = await getConvIdsForFilters(dateFrom, dateTo, instance, channel);
   if (convIds !== null) match.conversationId = { $in: convIds };
 
   const [distribution, byAgent, timeline] = await Promise.all([
@@ -329,7 +336,7 @@ router.get('/sentiment', async (req, res) => {
  * GET /api/reports/incidents
  */
 router.get('/incidents', async (req, res) => {
-  const { dateFrom, dateTo, instance } = req.query;
+  const { dateFrom, dateTo, instance, channel } = req.query;
   const Incident = require('../models/Incident');
 
   const incidentQuery = { active: true };
@@ -369,12 +376,12 @@ router.get('/incidents', async (req, res) => {
  * Report by channel with country info
  */
 router.get('/channels', async (req, res) => {
-  const { dateFrom, dateTo, instance, country } = req.query;
+  const { dateFrom, dateTo, instance, channel, country } = req.query;
   const { Channel } = require('../models');
 
   const match = { status: 'scored' };
   if (instance) match.instance = instance;
-  const convIds = await getConvIdsForDateRange(dateFrom, dateTo, instance);
+  const convIds = await getConvIdsForFilters(dateFrom, dateTo, instance, channel);
   if (convIds !== null) match.conversationId = { $in: convIds };
 
   // Get conversations grouped by channel
@@ -460,13 +467,13 @@ router.get('/channels', async (req, res) => {
  */
 router.get('/agent-pdf', async (req, res) => {
   const PDFDocument = require('pdfkit');
-  const { agentId, dateFrom, dateTo, instance } = req.query;
+  const { agentId, dateFrom, dateTo, instance, channel } = req.query;
 
   if (!agentId) return res.status(400).json({ error: 'agentId required' });
 
   const match = { agentId, status: 'scored' };
   if (instance) match.instance = instance;
-  const convIds = await getConvIdsForDateRange(dateFrom || '2020-01-01', dateTo, instance);
+  const convIds = await getConvIdsForFilters(dateFrom || '2020-01-01', dateTo, instance, channel);
   if (convIds !== null) match.conversationId = { $in: convIds };
   const from = new Date(dateFrom || '2020-01-01');
   const to = dateTo ? new Date(dateTo) : new Date();

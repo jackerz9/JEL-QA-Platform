@@ -6,17 +6,20 @@ const router = express.Router();
 /**
  * Helper: get conversation IDs matching a date range (by conversation startedAt)
  */
-async function getConvIdsForDateRange(dateFrom, dateTo, instance) {
-  if (!dateFrom && !dateTo) return null;
+async function getConvIdsForDateRange(dateFrom, dateTo, instance, channel) {
+  if (!dateFrom && !dateTo && !channel) return null;
   const query = {};
-  query.startedAt = {};
-  if (dateFrom) query.startedAt.$gte = new Date(dateFrom);
-  if (dateTo) {
-    const end = new Date(dateTo);
-    end.setHours(23, 59, 59, 999);
-    query.startedAt.$lte = end;
+  if (dateFrom || dateTo) {
+    query.startedAt = {};
+    if (dateFrom) query.startedAt.$gte = new Date(dateFrom);
+    if (dateTo) {
+      const end = new Date(dateTo);
+      end.setHours(23, 59, 59, 999);
+      query.startedAt.$lte = end;
+    }
   }
   if (instance) query.instance = instance;
+  if (channel) query.openedByChannel = channel;
   const convs = await Conversation.find(query, { conversationId: 1 });
   return convs.map(c => c.conversationId);
 }
@@ -25,11 +28,11 @@ async function getConvIdsForDateRange(dateFrom, dateTo, instance) {
  * GET /api/dashboard/summary
  */
 router.get('/summary', async (req, res) => {
-  const { instance, dateFrom, dateTo } = req.query;
+  const { instance, dateFrom, dateTo, channel } = req.query;
 
   const match = { status: 'scored' };
   if (instance) match.instance = instance;
-  const convIds = await getConvIdsForDateRange(dateFrom, dateTo, instance);
+  const convIds = await getConvIdsForDateRange(dateFrom, dateTo, instance, channel);
   if (convIds !== null) match.conversationId = { $in: convIds };
 
   const [stats] = await Evaluation.aggregate([
@@ -71,11 +74,11 @@ router.get('/summary', async (req, res) => {
  * GET /api/dashboard/agents
  */
 router.get('/agents', async (req, res) => {
-  const { instance, dateFrom, dateTo } = req.query;
+  const { instance, dateFrom, dateTo, channel } = req.query;
 
   const match = { status: 'scored' };
   if (instance) match.instance = instance;
-  const convIds = await getConvIdsForDateRange(dateFrom, dateTo, instance);
+  const convIds = await getConvIdsForDateRange(dateFrom, dateTo, instance, channel);
   if (convIds !== null) match.conversationId = { $in: convIds };
 
   const agentStats = await Evaluation.aggregate([
@@ -116,11 +119,11 @@ router.get('/agents', async (req, res) => {
  * GET /api/dashboard/categories
  */
 router.get('/categories', async (req, res) => {
-  const { instance, dateFrom, dateTo } = req.query;
+  const { instance, dateFrom, dateTo, channel } = req.query;
 
   const match = { status: 'scored' };
   if (instance) match.instance = instance;
-  const convIds = await getConvIdsForDateRange(dateFrom, dateTo, instance);
+  const convIds = await getConvIdsForDateRange(dateFrom, dateTo, instance, channel);
   if (convIds !== null) match.conversationId = { $in: convIds };
 
   const cats = await Evaluation.aggregate([
@@ -141,11 +144,11 @@ router.get('/categories', async (req, res) => {
  * GET /api/dashboard/timeline
  */
 router.get('/timeline', async (req, res) => {
-  const { instance, dateFrom, dateTo } = req.query;
+  const { instance, dateFrom, dateTo, channel } = req.query;
 
   const match = { status: 'scored' };
   if (instance) match.instance = instance;
-  const convIds = await getConvIdsForDateRange(dateFrom, dateTo, instance);
+  const convIds = await getConvIdsForDateRange(dateFrom, dateTo, instance, channel);
   if (convIds !== null) match.conversationId = { $in: convIds };
 
   const timeline = await Evaluation.aggregate([
@@ -179,7 +182,7 @@ router.get('/timeline', async (req, res) => {
  * Conversations by hour of day and day of week
  */
 router.get('/heatmap', async (req, res) => {
-  const { instance, dateFrom, dateTo } = req.query;
+  const { instance, dateFrom, dateTo, channel } = req.query;
 
   const match = {};
   if (instance) match.instance = instance;
@@ -215,7 +218,7 @@ router.get('/heatmap', async (req, res) => {
  * Daily conversation volume with score overlay
  */
 router.get('/volume', async (req, res) => {
-  const { instance, dateFrom, dateTo } = req.query;
+  const { instance, dateFrom, dateTo, channel } = req.query;
 
   const convMatch = {};
   if (instance) convMatch.instance = instance;
@@ -245,7 +248,7 @@ router.get('/volume', async (req, res) => {
   // Get evaluation scores by day
   const evalMatch = { status: 'scored' };
   if (instance) evalMatch.instance = instance;
-  const convIds = await getConvIdsForDateRange(dateFrom, dateTo, instance);
+  const convIds = await getConvIdsForDateRange(dateFrom, dateTo, instance, channel);
   if (convIds !== null) evalMatch.conversationId = { $in: convIds };
 
   const scores = await Evaluation.aggregate([

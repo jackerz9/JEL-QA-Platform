@@ -17,7 +17,19 @@ const GRADE_COLORS = { A: '#059669', B: '#2563EB', C: '#D97706', D: '#EA580C', F
 
 export default function Reports() {
   const [tab, setTab] = useState('agents');
-  const [filters, setFilters] = useState({ instance: '', dateFrom: '', dateTo: '' });
+  const [filters, setFilters] = useState({ instance: '', channel: '', dateFrom: '', dateTo: '' });
+  const [channels, setChannels] = useState([]);
+
+  // Load channels for filter dropdown
+  useEffect(() => {
+    fetchAuth('/channels').then(r => r.json()).then(setChannels).catch(() => {});
+  }, []);
+
+  // Group channels by instance for the dropdown
+  const channelsByInstance = channels.filter(c => c.active !== false);
+  const filteredChannels = filters.instance
+    ? channelsByInstance.filter(c => c.instance === filters.instance)
+    : channelsByInstance;
 
   return (
     <div>
@@ -26,11 +38,19 @@ export default function Reports() {
           <h1 className="text-2xl font-bold text-slate-800">Reportes</h1>
           <p className="text-sm text-slate-500 mt-0.5">Análisis detallado de calidad de atención</p>
         </div>
-        <div className="flex gap-3">
-          <select className="select" value={filters.instance} onChange={e => setFilters({ ...filters, instance: e.target.value })}>
-            <option value="">Todas</option>
+        <div className="flex gap-3 flex-wrap justify-end">
+          <select className="select" value={filters.instance} onChange={e => setFilters({ ...filters, instance: e.target.value, channel: '' })}>
+            <option value="">Todas las instancias</option>
             <option value="venezuela">Venezuela</option>
             <option value="internacional">Internacional</option>
+          </select>
+          <select className="select" value={filters.channel} onChange={e => setFilters({ ...filters, channel: e.target.value })}>
+            <option value="">Todos los canales</option>
+            {filteredChannels.map(c => (
+              <option key={c.channelId} value={c.channelId}>
+                {c.country ? `${c.country} · ` : ''}{c.name}
+              </option>
+            ))}
           </select>
           <input type="date" className="input" value={filters.dateFrom} onChange={e => setFilters({ ...filters, dateFrom: e.target.value })} />
           <input type="date" className="input" value={filters.dateTo} onChange={e => setFilters({ ...filters, dateTo: e.target.value })} />
@@ -73,6 +93,7 @@ function AgentsReport({ filters }) {
   useEffect(() => {
     const params = {};
     if (filters.instance) params.instance = filters.instance;
+    if (filters.channel) params.channel = filters.channel;
     if (filters.dateFrom) params.dateFrom = filters.dateFrom;
     if (filters.dateTo) params.dateTo = filters.dateTo;
     fetchAuth(`/reports/agents-summary?${new URLSearchParams(params)}`)
@@ -83,6 +104,7 @@ function AgentsReport({ filters }) {
     setSelected(agentId);
     const params = { agentId };
     if (filters.instance) params.instance = filters.instance;
+    if (filters.channel) params.channel = filters.channel;
     if (filters.dateFrom) params.dateFrom = filters.dateFrom;
     if (filters.dateTo) params.dateTo = filters.dateTo;
     if (!params.dateFrom) params.dateFrom = '2020-01-01';
@@ -246,6 +268,7 @@ function CategoriesReport({ filters }) {
   useEffect(() => {
     const params = {};
     if (filters.instance) params.instance = filters.instance;
+    if (filters.channel) params.channel = filters.channel;
     if (filters.dateFrom) params.dateFrom = filters.dateFrom;
     if (filters.dateTo) params.dateTo = filters.dateTo;
     fetchAuth(`/reports/categories?${new URLSearchParams(params)}`)
@@ -330,6 +353,7 @@ function SentimentReport({ filters }) {
   useEffect(() => {
     const params = {};
     if (filters.instance) params.instance = filters.instance;
+    if (filters.channel) params.channel = filters.channel;
     if (filters.dateFrom) params.dateFrom = filters.dateFrom;
     if (filters.dateTo) params.dateTo = filters.dateTo;
     fetchAuth(`/reports/sentiment?${new URLSearchParams(params)}`)
@@ -437,6 +461,7 @@ function IncidentsReport({ filters }) {
   useEffect(() => {
     const params = {};
     if (filters.instance) params.instance = filters.instance;
+    if (filters.channel) params.channel = filters.channel;
     if (filters.dateFrom) params.dateFrom = filters.dateFrom;
     if (filters.dateTo) params.dateTo = filters.dateTo;
     fetchAuth(`/reports/incidents?${new URLSearchParams(params)}`)
@@ -536,6 +561,7 @@ function ChannelsReport({ filters }) {
   useEffect(() => {
     const params = {};
     if (filters.instance) params.instance = filters.instance;
+    if (filters.channel) params.channel = filters.channel;
     if (filters.dateFrom) params.dateFrom = filters.dateFrom;
     if (filters.dateTo) params.dateTo = filters.dateTo;
     if (filterCountry) params.country = filterCountry;
