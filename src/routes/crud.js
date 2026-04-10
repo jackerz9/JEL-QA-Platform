@@ -264,4 +264,41 @@ contactsRouter.post('/import-csv', contactUpload.single('file'), async (req, res
   }
 });
 
-module.exports = { agentsRouter, categoriesRouter, contactsRouter };
+// ═══════════════════════════════════════
+//  CHANNELS
+// ═══════════════════════════════════════
+const { Channel } = require('../models');
+const channelsRouter = express.Router();
+
+channelsRouter.get('/', async (req, res) => {
+  const { instance, country, active } = req.query;
+  const query = {};
+  if (instance) query.instance = instance;
+  if (country) query.country = country;
+  if (active !== undefined) query.active = active === 'true';
+  const channels = await Channel.find(query).sort({ country: 1, name: 1 });
+  res.json(channels);
+});
+
+channelsRouter.post('/', async (req, res) => {
+  try {
+    const channel = await Channel.create(req.body);
+    res.status(201).json(channel);
+  } catch (err) {
+    if (err.code === 11000) return res.status(409).json({ error: 'Channel ID already exists' });
+    res.status(400).json({ error: err.message });
+  }
+});
+
+channelsRouter.put('/:id', async (req, res) => {
+  const channel = await Channel.findByIdAndUpdate(req.params.id, req.body, { new: true });
+  if (!channel) return res.status(404).json({ error: 'Not found' });
+  res.json(channel);
+});
+
+channelsRouter.delete('/:id', async (req, res) => {
+  await Channel.findByIdAndUpdate(req.params.id, { active: false });
+  res.json({ ok: true });
+});
+
+module.exports = { agentsRouter, categoriesRouter, contactsRouter, channelsRouter };

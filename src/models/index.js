@@ -173,6 +173,9 @@ const uploadBatchSchema = new mongoose.Schema({
 const channelSchema = new mongoose.Schema({
   channelId: { type: String, required: true, unique: true },
   name: { type: String, required: true },
+  country: { type: String }, // VE, CL, PE, MX, EC, INT
+  type: { type: String }, // website_chat, whatsapp, telegram, facebook, instagram, google, custom
+  instance: { type: String, enum: ['venezuela', 'internacional'] },
   active: { type: Boolean, default: true },
 }, { timestamps: true });
 

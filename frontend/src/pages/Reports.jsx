@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Users, Tag, Heart, AlertTriangle, FileDown, Download } from 'lucide-react';
+import { Users, Tag, Heart, AlertTriangle, FileDown, Download, Radio } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { api, fetchAuth } from '../utils/api';
 
 const TABS = [
   { id: 'agents', label: 'Por operador', icon: Users },
+  { id: 'channels', label: 'Por canal', icon: Radio },
   { id: 'categories', label: 'Por categoría', icon: Tag },
   { id: 'sentiment', label: 'Sentimiento', icon: Heart },
   { id: 'incidents', label: 'Incidentes', icon: AlertTriangle },
@@ -52,6 +53,7 @@ export default function Reports() {
       </div>
 
       {tab === 'agents' && <AgentsReport filters={filters} />}
+      {tab === 'channels' && <ChannelsReport filters={filters} />}
       {tab === 'categories' && <CategoriesReport filters={filters} />}
       {tab === 'sentiment' && <SentimentReport filters={filters} />}
       {tab === 'incidents' && <IncidentsReport filters={filters} />}
@@ -506,6 +508,148 @@ function IncidentsReport({ filters }) {
               </tr>
             ))}
             {data.length === 0 && <tr><td colSpan={8} className="text-center py-8 text-slate-400">No hay incidentes registrados</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════
+// CHANNELS REPORT
+// ═══════════════════════════════════════════════
+const COUNTRY_INFO = {
+  VE: { label: 'Venezuela', flag: '🇻🇪', color: 'bg-amber-50 text-amber-700 border-amber-200' },
+  CL: { label: 'Chile', flag: '🇨🇱', color: 'bg-red-50 text-red-700 border-red-200' },
+  PE: { label: 'Perú', flag: '🇵🇪', color: 'bg-rose-50 text-rose-700 border-rose-200' },
+  MX: { label: 'México', flag: '🇲🇽', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  EC: { label: 'Ecuador', flag: '🇪🇨', color: 'bg-blue-50 text-blue-700 border-blue-200' },
+  INT: { label: 'Internacional', flag: '🌎', color: 'bg-slate-100 text-slate-600 border-slate-200' },
+};
+
+const TYPE_ICONS = { website_chat: '💬', whatsapp: '📱', telegram: '✈️', facebook: '👤', instagram: '📷', google: '🔍', custom: '⚙️' };
+
+function ChannelsReport({ filters }) {
+  const [data, setData] = useState([]);
+  const [filterCountry, setFilterCountry] = useState('');
+
+  useEffect(() => {
+    const params = {};
+    if (filters.instance) params.instance = filters.instance;
+    if (filters.dateFrom) params.dateFrom = filters.dateFrom;
+    if (filters.dateTo) params.dateTo = filters.dateTo;
+    if (filterCountry) params.country = filterCountry;
+    fetchAuth(`/reports/channels?${new URLSearchParams(params)}`)
+      .then(r => r.json()).then(setData).catch(console.error);
+  }, [filters, filterCountry]);
+
+  const totalConvs = data.reduce((s, d) => s + d.conversations, 0);
+  const totalEvals = data.reduce((s, d) => s + d.evaluated, 0);
+
+  // Group by country for summary
+  const byCountry = {};
+  data.forEach(d => {
+    if (!byCountry[d.country]) byCountry[d.country] = { conversations: 0, evaluated: 0, scores: [] };
+    byCountry[d.country].conversations += d.conversations;
+    byCountry[d.country].evaluated += d.evaluated;
+    if (d.avgScore) byCountry[d.country].scores.push(d.avgScore);
+  });
+
+  return (
+    <div className="space-y-4">
+      {/* Country summary cards */}
+      <div className="grid grid-cols-6 gap-3">
+        {Object.entries(COUNTRY_INFO).map(([code, info]) => {
+          const stats = byCountry[code];
+          if (!stats) return (
+            <div key={code} className="card text-center py-3 opacity-40">
+              <p className="text-lg">{info.flag}</p>
+              <p className="text-xs text-slate-400 mt-1">{info.label}</p>
+              <p className="text-xs text-slate-300">Sin datos</p>
+            </div>
+          );
+          const avgScore = stats.scores.length > 0 ? Math.round(stats.scores.reduce((a, b) => a + b, 0) / stats.scores.length) : null;
+          return (
+            <button key={code} onClick={() => setFilterCountry(filterCountry === code ? '' : code)}
+              className={`card text-center py-3 cursor-pointer transition-all ${filterCountry === code ? 'ring-2 ring-jel-orange' : ''}`}>
+              <p className="text-lg">{info.flag}</p>
+              <p className="text-xs font-semibold text-slate-700 mt-1">{info.label}</p>
+              <p className="text-lg font-bold text-slate-800">{stats.conversations}</p>
+              <p className="text-xs text-slate-400">convs</p>
+              {avgScore && <p className="text-xs font-semibold mt-1" style={{ color: avgScore >= 75 ? '#059669' : avgScore >= 50 ? '#D97706' : '#DC2626' }}>Score: {avgScore}</p>}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* KPIs */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="card text-center py-4">
+          <p className="text-xs text-slate-500">Canales activos</p>
+          <p className="text-2xl font-bold text-slate-800 mt-1">{data.length}</p>
+        </div>
+        <div className="card text-center py-4">
+          <p className="text-xs text-slate-500">Total conversaciones</p>
+          <p className="text-2xl font-bold text-slate-800 mt-1">{totalConvs}</p>
+        </div>
+        <div className="card text-center py-4">
+          <p className="text-xs text-slate-500">Evaluadas</p>
+          <p className="text-2xl font-bold text-emerald-600 mt-1">{totalEvals}</p>
+        </div>
+      </div>
+
+      {/* Channel table */}
+      <div className="card overflow-x-auto">
+        <h3 className="text-sm font-semibold text-slate-700 mb-4">
+          Detalle por canal {filterCountry && <span className="text-jel-orange">— {COUNTRY_INFO[filterCountry]?.flag} {COUNTRY_INFO[filterCountry]?.label}</span>}
+        </h3>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-xs text-slate-500 border-b border-slate-200">
+              <th className="pb-2 font-medium">Canal</th>
+              <th className="pb-2 font-medium">País</th>
+              <th className="pb-2 font-medium">Tipo</th>
+              <th className="pb-2 font-medium text-center">Convs.</th>
+              <th className="pb-2 font-medium text-center">Evaluadas</th>
+              <th className="pb-2 font-medium text-center">Score</th>
+              <th className="pb-2 font-medium text-center">Sent.</th>
+              <th className="pb-2 font-medium text-center">Alertas</th>
+              <th className="pb-2 font-medium">Notas</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.map(ch => {
+              const ci = COUNTRY_INFO[ch.country] || COUNTRY_INFO.INT;
+              return (
+                <tr key={ch.channelId} className="border-b border-slate-100 hover:bg-slate-50">
+                  <td className="py-2.5 font-medium text-slate-700">{ch.channelName}</td>
+                  <td className="py-2.5"><span className={`badge border text-[11px] ${ci.color}`}>{ci.flag} {ch.country}</span></td>
+                  <td className="py-2.5 text-xs text-slate-500">{TYPE_ICONS[ch.type] || '❓'} {ch.type}</td>
+                  <td className="py-2.5 text-center font-mono">{ch.conversations}</td>
+                  <td className="py-2.5 text-center font-mono text-emerald-600">{ch.evaluated}</td>
+                  <td className="py-2.5 text-center">
+                    <span className="font-semibold" style={{ color: ch.avgScore >= 75 ? '#059669' : ch.avgScore >= 50 ? '#D97706' : '#DC2626' }}>
+                      {ch.avgScore}
+                    </span>
+                  </td>
+                  <td className="py-2.5 text-center">
+                    <span style={{ color: ch.avgSentiment >= 0 ? '#059669' : '#DC2626' }}>
+                      {ch.avgSentiment > 0 ? '+' : ''}{ch.avgSentiment}
+                    </span>
+                  </td>
+                  <td className="py-2.5 text-center">{ch.alertCount > 0 ? <span className="text-red-600 font-semibold">{ch.alertCount}</span> : '—'}</td>
+                  <td className="py-2.5">
+                    <div className="flex gap-1">
+                      {['A', 'B', 'C', 'D', 'F'].map(g => {
+                        const v = ch.grades?.[g] || 0;
+                        return v > 0 ? <span key={g} className={`badge grade-${g} text-[10px]`}>{g}:{v}</span> : null;
+                      })}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+            {data.length === 0 && <tr><td colSpan={9} className="text-center py-8 text-slate-400">Sin datos para este período</td></tr>}
           </tbody>
         </table>
       </div>

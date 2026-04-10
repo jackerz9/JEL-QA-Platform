@@ -365,6 +365,96 @@ router.get('/incidents', async (req, res) => {
 });
 
 /**
+ * GET /api/reports/channels
+ * Report by channel with country info
+ */
+router.get('/channels', async (req, res) => {
+  const { dateFrom, dateTo, instance, country } = req.query;
+  const { Channel } = require('../models');
+
+  const match = { status: 'scored' };
+  if (instance) match.instance = instance;
+  const convIds = await getConvIdsForDateRange(dateFrom, dateTo, instance);
+  if (convIds !== null) match.conversationId = { $in: convIds };
+
+  // Get conversations grouped by channel
+  const convMatch = {};
+  if (instance) convMatch.instance = instance;
+  if (dateFrom || dateTo) {
+    convMatch.startedAt = {};
+    if (dateFrom) convMatch.startedAt.$gte = new Date(dateFrom);
+    if (dateTo) {
+      const end = new Date(dateTo);
+      end.setHours(23, 59, 59, 999);
+      convMatch.startedAt.$lte = end;
+    }
+  }
+
+  const channelVolume = await Conversation.aggregate([
+    { $match: convMatch },
+    { $group: { _id: '$openedByChannel', conversations: { $sum: 1 } } },
+  ]);
+
+  // Get eval stats by looking up conversation channel
+  const evalsByChannel = await Evaluation.aggregate([
+    { $match: match },
+    {
+      $lookup: {
+        from: 'conversations',
+        localField: 'conversationId',
+        foreignField: 'conversationId',
+        as: 'conv',
+      },
+    },
+    { $unwind: '$conv' },
+    {
+      $group: {
+        _id: '$conv.openedByChannel',
+        evaluated: { $sum: 1 },
+        avgScore: { $avg: '$finalScore' },
+        avgSentiment: { $avg: '$sentiment.score' },
+        alertCount: { $sum: { $cond: ['$needsAttention', 1, 0] } },
+        gradeA: { $sum: { $cond: [{ $eq: ['$grade', 'A'] }, 1, 0] } },
+        gradeB: { $sum: { $cond: [{ $eq: ['$grade', 'B'] }, 1, 0] } },
+        gradeC: { $sum: { $cond: [{ $eq: ['$grade', 'C'] }, 1, 0] } },
+        gradeD: { $sum: { $cond: [{ $eq: ['$grade', 'D'] }, 1, 0] } },
+        gradeF: { $sum: { $cond: [{ $eq: ['$grade', 'F'] }, 1, 0] } },
+      },
+    },
+  ]);
+
+  // Enrich with channel info
+  const channels = await Channel.find({});
+  const channelMap = {};
+  channels.forEach(c => { channelMap[c.channelId] = c; });
+
+  const volumeMap = {};
+  channelVolume.forEach(v => { volumeMap[v._id] = v.conversations; });
+
+  let result = evalsByChannel.map(e => {
+    const ch = channelMap[e._id] || {};
+    return {
+      channelId: e._id,
+      channelName: ch.name || `Canal ${e._id}`,
+      country: ch.country || '??',
+      type: ch.type || 'unknown',
+      instance: ch.instance || '',
+      conversations: volumeMap[e._id] || 0,
+      evaluated: e.evaluated,
+      avgScore: Math.round(e.avgScore || 0),
+      avgSentiment: Math.round(e.avgSentiment || 0),
+      alertCount: e.alertCount,
+      grades: { A: e.gradeA, B: e.gradeB, C: e.gradeC, D: e.gradeD, F: e.gradeF },
+    };
+  });
+
+  if (country) result = result.filter(r => r.country === country);
+
+  result.sort((a, b) => b.conversations - a.conversations);
+  res.json(result);
+});
+
+/**
  * GET /api/reports/agent-pdf
  * Genera PDF del reporte de un agente
  */

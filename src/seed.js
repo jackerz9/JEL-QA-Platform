@@ -46,26 +46,32 @@ const AGENTS = [
 //  CHANNELS
 // ═══════════════════════════════════════
 const CHANNELS = [
-  { channelId: '41619', name: 'JEL CLP Website Chat' },
-  { channelId: '129635', name: 'Instagram Chile' },
-  { channelId: '129636', name: 'Facebook Chile' },
-  { channelId: '174498', name: 'JEL EC Website Chat' },
-  { channelId: '324856', name: 'JEL MEX Website Chat' },
-  { channelId: '326777', name: 'JEL PEN Website Chat' },
-  { channelId: '326788', name: 'Facebook Ecuador' },
-  { channelId: '326791', name: 'Instagram Ecuador' },
-  { channelId: '346123', name: 'Telegram (1)' },
-  { channelId: '346480', name: 'JEL USD Website Chat' },
-  { channelId: '347216', name: 'Facebook Peru (Nuevo)' },
-  { channelId: '347217', name: 'Instagram Peru (Nuevo)' },
-  { channelId: '412154', name: 'Custom Channel' },
-  { channelId: '434925', name: 'Instagram México' },
-  { channelId: '434926', name: 'Facebook México' },
-  { channelId: '168028', name: 'Google Business' },
-  { channelId: '171364', name: 'Soporte JuegaEnLínea Website Chat' },
-  { channelId: '328853', name: 'Facebook Messenger (VE)' },
-  { channelId: '328854', name: 'Instagram (VE)' },
-  { channelId: '346122', name: 'Telegram' },
+  // Venezuela
+  { channelId: '168028', name: 'Google Business', country: 'VE', type: 'google', instance: 'venezuela' },
+  { channelId: '171364', name: 'Soporte JuegaEnLínea VE', country: 'VE', type: 'website_chat', instance: 'venezuela' },
+  { channelId: '328853', name: 'Facebook Messenger (VE)', country: 'VE', type: 'facebook', instance: 'venezuela' },
+  { channelId: '328854', name: 'Instagram (VE)', country: 'VE', type: 'instagram', instance: 'venezuela' },
+  { channelId: '346122', name: 'Telegram VE', country: 'VE', type: 'telegram', instance: 'venezuela' },
+  // Chile
+  { channelId: '41619', name: 'JEL CLP', country: 'CL', type: 'website_chat', instance: 'internacional' },
+  { channelId: '129635', name: 'Instagram Chile', country: 'CL', type: 'instagram', instance: 'internacional' },
+  { channelId: '129636', name: 'Facebook Chile', country: 'CL', type: 'facebook', instance: 'internacional' },
+  // Ecuador
+  { channelId: '174498', name: 'JEL EC', country: 'EC', type: 'website_chat', instance: 'internacional' },
+  { channelId: '326788', name: 'Facebook Ecuador', country: 'EC', type: 'facebook', instance: 'internacional' },
+  { channelId: '326791', name: 'Instagram Ecuador', country: 'EC', type: 'instagram', instance: 'internacional' },
+  // México
+  { channelId: '324856', name: 'JEL MEX', country: 'MX', type: 'website_chat', instance: 'internacional' },
+  { channelId: '434925', name: 'Instagram México', country: 'MX', type: 'instagram', instance: 'internacional' },
+  { channelId: '434926', name: 'Facebook México', country: 'MX', type: 'facebook', instance: 'internacional' },
+  // Perú
+  { channelId: '326777', name: 'JEL PEN', country: 'PE', type: 'website_chat', instance: 'internacional' },
+  { channelId: '347216', name: 'Facebook Peru (Nuevo)', country: 'PE', type: 'facebook', instance: 'internacional' },
+  { channelId: '347217', name: 'Instagram Peru (Nuevo)', country: 'PE', type: 'instagram', instance: 'internacional' },
+  // Internacional / Multi
+  { channelId: '346123', name: 'Telegram Internacional', country: 'INT', type: 'telegram', instance: 'internacional' },
+  { channelId: '346480', name: 'JEL USD', country: 'INT', type: 'website_chat', instance: 'internacional' },
+  { channelId: '412154', name: 'Custom Channel', country: 'INT', type: 'custom', instance: 'internacional' },
 ];
 
 // ═══════════════════════════════════════

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Routes, Route, NavLink, Navigate } from 'react-router-dom';
-import { LayoutDashboard, Upload, Users, Tag, UserCircle, Activity, FileText, Settings, Shield, LogOut, ChevronDown, AlertTriangle } from 'lucide-react';
+import { LayoutDashboard, Upload, Users, Tag, UserCircle, Activity, FileText, Settings, Shield, LogOut, ChevronDown, AlertTriangle, Radio } from 'lucide-react';
 import { useAuth } from './utils/AuthContext';
 import Dashboard from './pages/Dashboard';
 import UploadPage from './pages/UploadPage';
@@ -9,6 +9,7 @@ import EvaluationDetail from './pages/EvaluationDetail';
 import Reports from './pages/Reports';
 import Agents from './pages/Agents';
 import Categories from './pages/Categories';
+import ChannelsPage from './pages/ChannelsPage';
 import Contacts from './pages/Contacts';
 import SettingsPage from './pages/SettingsPage';
 import UsersPage from './pages/UsersPage';
@@ -36,6 +37,7 @@ const SECTIONS = [
     items: [
       { to: '/agents', icon: Users, label: 'Agentes', roles: ['admin', 'supervisor'] },
       { to: '/categories', icon: Tag, label: 'Categorías', roles: ['admin', 'supervisor'] },
+      { to: '/channels', icon: Radio, label: 'Canales', roles: ['admin', 'supervisor'] },
       { to: '/contacts', icon: UserCircle, label: 'Contactos', roles: ['admin', 'supervisor'] },
     ],
   },
@@ -152,6 +154,7 @@ function AuthenticatedApp() {
             <Route path="/upload" element={<ProtectedRoute roles={['admin', 'supervisor']}><UploadPage /></ProtectedRoute>} />
             <Route path="/agents" element={<ProtectedRoute roles={['admin', 'supervisor']}><Agents /></ProtectedRoute>} />
             <Route path="/categories" element={<ProtectedRoute roles={['admin', 'supervisor']}><Categories /></ProtectedRoute>} />
+            <Route path="/channels" element={<ProtectedRoute roles={['admin', 'supervisor']}><ChannelsPage /></ProtectedRoute>} />
             <Route path="/contacts" element={<ProtectedRoute roles={['admin', 'supervisor']}><Contacts /></ProtectedRoute>} />
             <Route path="/incidents" element={<ProtectedRoute roles={['admin', 'supervisor']}><IncidentsPage /></ProtectedRoute>} />
             <Route path="/users" element={<ProtectedRoute roles={['admin']}><UsersPage /></ProtectedRoute>} />
