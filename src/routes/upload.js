@@ -94,11 +94,7 @@ router.post('/',
         UploadBatch.findByIdAndUpdate(batch._id, { status: 'error' }).catch(() => {});
       });
 
-    res.json({
-      batchId: batch._id,
-      status: 'parsing',
-      message: 'Files uploaded, processing started',
-    });
+    res.json(batch);
   }
 );
 
