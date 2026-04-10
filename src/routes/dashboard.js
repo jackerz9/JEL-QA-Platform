@@ -4,22 +4,36 @@ const { Evaluation, Conversation, Message, Agent } = require('../models');
 const router = express.Router();
 
 /**
+ * Helper: get conversation IDs matching a date range (by conversation startedAt)
+ */
+async function getConvIdsForDateRange(dateFrom, dateTo, instance) {
+  if (!dateFrom && !dateTo) return null;
+  const query = {};
+  query.startedAt = {};
+  if (dateFrom) query.startedAt.$gte = new Date(dateFrom);
+  if (dateTo) {
+    const end = new Date(dateTo);
+    end.setHours(23, 59, 59, 999);
+    query.startedAt.$lte = end;
+  }
+  if (instance) query.instance = instance;
+  const convs = await Conversation.find(query, { conversationId: 1 });
+  return convs.map(c => c.conversationId);
+}
+
+/**
  * GET /api/dashboard/summary
- * KPIs globales o filtrados por instancia/fecha
  */
 router.get('/summary', async (req, res) => {
   const { instance, dateFrom, dateTo } = req.query;
 
-  const match = {};
+  const match = { status: 'scored' };
   if (instance) match.instance = instance;
-  if (dateFrom || dateTo) {
-    match.evaluatedAt = {};
-    if (dateFrom) match.evaluatedAt.$gte = new Date(dateFrom);
-    if (dateTo) match.evaluatedAt.$lte = new Date(dateTo);
-  }
+  const convIds = await getConvIdsForDateRange(dateFrom, dateTo, instance);
+  if (convIds !== null) match.conversationId = { $in: convIds };
 
   const [stats] = await Evaluation.aggregate([
-    { $match: { ...match, status: 'scored' } },
+    { $match: match },
     {
       $group: {
         _id: null,
@@ -48,27 +62,21 @@ router.get('/summary', async (req, res) => {
   ]);
 
   res.json(stats || {
-    totalEvaluations: 0,
-    avgFinalScore: 0,
-    avgQuantitative: 0,
-    avgQualitative: 0,
+    totalEvaluations: 0, avgFinalScore: 0, avgQuantitative: 0, avgQualitative: 0,
+    avgFirstResponse: 0, gradeA: 0, gradeB: 0, gradeC: 0, gradeD: 0, gradeF: 0,
   });
 });
 
 /**
  * GET /api/dashboard/agents
- * Ranking de agentes
  */
 router.get('/agents', async (req, res) => {
   const { instance, dateFrom, dateTo } = req.query;
 
   const match = { status: 'scored' };
   if (instance) match.instance = instance;
-  if (dateFrom || dateTo) {
-    match.evaluatedAt = {};
-    if (dateFrom) match.evaluatedAt.$gte = new Date(dateFrom);
-    if (dateTo) match.evaluatedAt.$lte = new Date(dateTo);
-  }
+  const convIds = await getConvIdsForDateRange(dateFrom, dateTo, instance);
+  if (convIds !== null) match.conversationId = { $in: convIds };
 
   const agentStats = await Evaluation.aggregate([
     { $match: match },
@@ -92,14 +100,13 @@ router.get('/agents', async (req, res) => {
     { $sort: { avgFinalScore: -1 } },
   ]);
 
-  // Enrich with agent names
   const agents = await Agent.find({});
   const agentMap = {};
   agents.forEach(a => { agentMap[a.respondioId] = a.name; });
 
   const enriched = agentStats.map(s => ({
     ...s,
-    agentName: agentMap[s._id] || `Agente ${s._id}`,
+    agentName: agentMap[s._id] || (s._id ? `Agente ${s._id}` : 'Sin asignar'),
   }));
 
   res.json(enriched);
@@ -107,24 +114,20 @@ router.get('/agents', async (req, res) => {
 
 /**
  * GET /api/dashboard/categories
- * Distribución de categorías
  */
 router.get('/categories', async (req, res) => {
   const { instance, dateFrom, dateTo } = req.query;
 
-  const match = {};
+  const match = { status: 'scored' };
   if (instance) match.instance = instance;
-  if (dateFrom || dateTo) {
-    match.startedAt = {};
-    if (dateFrom) match.startedAt.$gte = new Date(dateFrom);
-    if (dateTo) match.startedAt.$lte = new Date(dateTo);
-  }
+  const convIds = await getConvIdsForDateRange(dateFrom, dateTo, instance);
+  if (convIds !== null) match.conversationId = { $in: convIds };
 
-  const cats = await Conversation.aggregate([
+  const cats = await Evaluation.aggregate([
     { $match: match },
     {
       $group: {
-        _id: '$respondioCategory',
+        _id: '$aiCategory',
         count: { $sum: 1 },
       },
     },
@@ -136,24 +139,29 @@ router.get('/categories', async (req, res) => {
 
 /**
  * GET /api/dashboard/timeline
- * Score promedio por día
  */
 router.get('/timeline', async (req, res) => {
   const { instance, dateFrom, dateTo } = req.query;
 
   const match = { status: 'scored' };
   if (instance) match.instance = instance;
-  if (dateFrom || dateTo) {
-    match.evaluatedAt = {};
-    if (dateFrom) match.evaluatedAt.$gte = new Date(dateFrom);
-    if (dateTo) match.evaluatedAt.$lte = new Date(dateTo);
-  }
+  const convIds = await getConvIdsForDateRange(dateFrom, dateTo, instance);
+  if (convIds !== null) match.conversationId = { $in: convIds };
 
   const timeline = await Evaluation.aggregate([
     { $match: match },
     {
+      $lookup: {
+        from: 'conversations',
+        localField: 'conversationId',
+        foreignField: 'conversationId',
+        as: 'conv',
+      },
+    },
+    { $unwind: { path: '$conv', preserveNullAndEmptyArrays: true } },
+    {
       $group: {
-        _id: { $dateToString: { format: '%Y-%m-%d', date: '$evaluatedAt' } },
+        _id: { $dateToString: { format: '%Y-%m-%d', date: { $ifNull: ['$conv.startedAt', '$evaluatedAt'] } } },
         avgScore: { $avg: '$finalScore' },
         count: { $sum: 1 },
         avgQuantitative: { $avg: '$quantitative.totalScore' },
