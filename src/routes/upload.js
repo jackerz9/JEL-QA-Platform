@@ -213,7 +213,7 @@ async function processUpload(batch, convsPath, msgsPath, instance) {
     let evaluated = 0;
     let errors = 0;
     let skipped = 0;
-    const CONCURRENCY = 3;
+    const CONCURRENCY = 5;
 
     // Pre-calculate grade thresholds
     const qWeight = (weights.quantitativeWeight || 60) / 100;
