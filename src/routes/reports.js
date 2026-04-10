@@ -20,10 +20,9 @@ router.get('/agent-daily', async (req, res) => {
   };
   if (instance) match.instance = instance;
 
-  // Date range
-  const from = new Date(dateFrom);
-  const to = dateTo ? new Date(dateTo) : new Date(from.getTime() + 86400000); // default: 1 day
-  match.evaluatedAt = { $gte: from, $lt: to };
+  // Date range - filter by conversation date
+  const convIds = await getConvIdsForDateRange(dateFrom, dateTo || dateFrom, instance);
+  if (convIds !== null) match.conversationId = { $in: convIds };
 
   const evaluations = await Evaluation.find(match).sort({ finalScore: 1 });
 
@@ -115,7 +114,7 @@ router.get('/agent-daily', async (req, res) => {
       name: agent?.name || `Agente ${agentId}`,
       instance: agent?.instance || instance,
     },
-    period: { from: from.toISOString(), to: to.toISOString() },
+    period: { from: dateFrom, to: dateTo || dateFrom },
     summary: {
       totalEvals,
       avgFinal,
@@ -173,6 +172,24 @@ router.get('/agent-daily', async (req, res) => {
 });
 
 /**
+ * Helper: get conversation IDs matching a date range (by conversation startedAt, not evaluatedAt)
+ */
+async function getConvIdsForDateRange(dateFrom, dateTo, instance) {
+  if (!dateFrom && !dateTo) return null; // null = no filter
+  const query = {};
+  query.startedAt = {};
+  if (dateFrom) query.startedAt.$gte = new Date(dateFrom);
+  if (dateTo) {
+    const end = new Date(dateTo);
+    end.setHours(23, 59, 59, 999);
+    query.startedAt.$lte = end;
+  }
+  if (instance) query.instance = instance;
+  const convs = await Conversation.find(query, { conversationId: 1 });
+  return convs.map(c => c.conversationId);
+}
+
+/**
  * GET /api/reports/agents-summary
  * Resumen de todos los agentes para un período (para la lista de reportes)
  */
@@ -181,11 +198,10 @@ router.get('/agents-summary', async (req, res) => {
 
   const match = { status: 'scored' };
   if (instance) match.instance = instance;
-  if (dateFrom || dateTo) {
-    match.evaluatedAt = {};
-    if (dateFrom) match.evaluatedAt.$gte = new Date(dateFrom);
-    if (dateTo) match.evaluatedAt.$lte = new Date(dateTo);
-  }
+
+  // Filter by conversation date, not evaluation date
+  const convIds = await getConvIdsForDateRange(dateFrom, dateTo, instance);
+  if (convIds !== null) match.conversationId = { $in: convIds };
 
   const stats = await Evaluation.aggregate([
     { $match: match },
@@ -226,11 +242,8 @@ router.get('/categories', async (req, res) => {
   const { dateFrom, dateTo, instance } = req.query;
   const match = { status: 'scored' };
   if (instance) match.instance = instance;
-  if (dateFrom || dateTo) {
-    match.evaluatedAt = {};
-    if (dateFrom) match.evaluatedAt.$gte = new Date(dateFrom);
-    if (dateTo) match.evaluatedAt.$lte = new Date(dateTo);
-  }
+  const convIds = await getConvIdsForDateRange(dateFrom, dateTo, instance);
+  if (convIds !== null) match.conversationId = { $in: convIds };
 
   const stats = await Evaluation.aggregate([
     { $match: match },
@@ -261,11 +274,8 @@ router.get('/sentiment', async (req, res) => {
   const { dateFrom, dateTo, instance } = req.query;
   const match = { status: 'scored' };
   if (instance) match.instance = instance;
-  if (dateFrom || dateTo) {
-    match.evaluatedAt = {};
-    if (dateFrom) match.evaluatedAt.$gte = new Date(dateFrom);
-    if (dateTo) match.evaluatedAt.$lte = new Date(dateTo);
-  }
+  const convIds = await getConvIdsForDateRange(dateFrom, dateTo, instance);
+  if (convIds !== null) match.conversationId = { $in: convIds };
 
   const [distribution, byAgent, timeline] = await Promise.all([
     // Overall distribution
@@ -366,10 +376,10 @@ router.get('/agent-pdf', async (req, res) => {
 
   const match = { agentId, status: 'scored' };
   if (instance) match.instance = instance;
+  const convIds = await getConvIdsForDateRange(dateFrom || '2020-01-01', dateTo, instance);
+  if (convIds !== null) match.conversationId = { $in: convIds };
   const from = new Date(dateFrom || '2020-01-01');
   const to = dateTo ? new Date(dateTo) : new Date();
-  to.setHours(23, 59, 59, 999);
-  match.evaluatedAt = { $gte: from, $lte: to };
 
   const evaluations = await Evaluation.find(match).sort({ finalScore: -1 });
   const agent = await Agent.findOne({ respondioId: agentId });
