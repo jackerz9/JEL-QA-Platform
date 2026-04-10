@@ -174,4 +174,120 @@ router.get('/timeline', async (req, res) => {
   res.json(timeline);
 });
 
+/**
+ * GET /api/dashboard/heatmap
+ * Conversations by hour of day and day of week
+ */
+router.get('/heatmap', async (req, res) => {
+  const { instance, dateFrom, dateTo } = req.query;
+
+  const match = {};
+  if (instance) match.instance = instance;
+  if (dateFrom || dateTo) {
+    match.startedAt = {};
+    if (dateFrom) match.startedAt.$gte = new Date(dateFrom);
+    if (dateTo) {
+      const end = new Date(dateTo);
+      end.setHours(23, 59, 59, 999);
+      match.startedAt.$lte = end;
+    }
+  }
+
+  const data = await Conversation.aggregate([
+    { $match: match },
+    {
+      $group: {
+        _id: {
+          dayOfWeek: { $dayOfWeek: '$startedAt' }, // 1=Sun, 7=Sat
+          hour: { $hour: '$startedAt' },
+        },
+        count: { $sum: 1 },
+      },
+    },
+    { $sort: { '_id.dayOfWeek': 1, '_id.hour': 1 } },
+  ]);
+
+  res.json(data);
+});
+
+/**
+ * GET /api/dashboard/volume
+ * Daily conversation volume with score overlay
+ */
+router.get('/volume', async (req, res) => {
+  const { instance, dateFrom, dateTo } = req.query;
+
+  const convMatch = {};
+  if (instance) convMatch.instance = instance;
+  if (dateFrom || dateTo) {
+    convMatch.startedAt = {};
+    if (dateFrom) convMatch.startedAt.$gte = new Date(dateFrom);
+    if (dateTo) {
+      const end = new Date(dateTo);
+      end.setHours(23, 59, 59, 999);
+      convMatch.startedAt.$lte = end;
+    }
+  }
+
+  // Get conversation volume by day
+  const volume = await Conversation.aggregate([
+    { $match: convMatch },
+    {
+      $group: {
+        _id: { $dateToString: { format: '%Y-%m-%d', date: '$startedAt' } },
+        conversations: { $sum: 1 },
+        dayOfWeek: { $first: { $dayOfWeek: '$startedAt' } },
+      },
+    },
+    { $sort: { _id: 1 } },
+  ]);
+
+  // Get evaluation scores by day
+  const evalMatch = { status: 'scored' };
+  if (instance) evalMatch.instance = instance;
+  const convIds = await getConvIdsForDateRange(dateFrom, dateTo, instance);
+  if (convIds !== null) evalMatch.conversationId = { $in: convIds };
+
+  const scores = await Evaluation.aggregate([
+    { $match: evalMatch },
+    {
+      $lookup: {
+        from: 'conversations',
+        localField: 'conversationId',
+        foreignField: 'conversationId',
+        as: 'conv',
+      },
+    },
+    { $unwind: { path: '$conv', preserveNullAndEmptyArrays: true } },
+    {
+      $group: {
+        _id: { $dateToString: { format: '%Y-%m-%d', date: { $ifNull: ['$conv.startedAt', '$evaluatedAt'] } } },
+        avgScore: { $avg: '$finalScore' },
+        evaluated: { $sum: 1 },
+      },
+    },
+  ]);
+
+  const scoreMap = {};
+  scores.forEach(s => { scoreMap[s._id] = s; });
+
+  // Calculate average volume for anomaly detection
+  const avgVolume = volume.length > 0 ? volume.reduce((s, v) => s + v.conversations, 0) / volume.length : 0;
+  const stdDev = volume.length > 1
+    ? Math.sqrt(volume.reduce((s, v) => s + Math.pow(v.conversations - avgVolume, 2), 0) / volume.length)
+    : 0;
+
+  const enriched = volume.map(v => ({
+    date: v._id,
+    conversations: v.conversations,
+    dayOfWeek: v.dayOfWeek, // 1=Sun, 7=Sat
+    isWeekend: v.dayOfWeek === 1 || v.dayOfWeek === 7,
+    isAnomaly: v.conversations > avgVolume + 2 * stdDev,
+    avgScore: scoreMap[v._id]?.avgScore ? Math.round(scoreMap[v._id].avgScore) : null,
+    evaluated: scoreMap[v._id]?.evaluated || 0,
+  }));
+
+  res.json({ data: enriched, avgVolume: Math.round(avgVolume) });
+});
+
 module.exports = router;
