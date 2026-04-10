@@ -136,6 +136,12 @@ const evaluationSchema = new mongoose.Schema({
   attentionReason: { type: String },
   coachingTip: { type: String },
 
+  // ── Incidentes ──
+  affectedByIncident: { type: Boolean, default: false },
+  incidentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Incident' },
+  incidentTitle: { type: String },
+  relaxFactor: { type: Number, default: 1 },
+
   // ── Score final combinado ──
   finalScore: { type: Number }, // 60% cuantitativo + 40% cualitativo
   grade: { type: String, enum: ['A', 'B', 'C', 'D', 'F'] },

@@ -116,6 +116,7 @@ export default function Evaluations() {
                   </td>
                   <td className="py-2.5 text-center">
                     {ev.needsAttention && <span className="text-red-600" title={ev.attentionReason}>⚠</span>}
+                    {ev.affectedByIncident && <span className="badge bg-amber-50 text-amber-600 border border-amber-200 text-[10px] ml-1" title={ev.incidentTitle}>⚡ Incidente</span>}
                   </td>
                 </tr>
               ))

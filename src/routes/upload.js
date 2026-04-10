@@ -195,14 +195,20 @@ async function processUpload(batch, convsPath, msgsPath, instance) {
 
     // Load settings (cached for entire batch)
     const Settings = require('../models/Settings');
+    const Incident = require('../models/Incident');
     const settings = await Settings.getSettings();
     const filters = settings.filters || {};
     const weights = settings.weights || {};
     const aiConfig = settings.ai || {};
 
-    // Cache categories + pre-build grouped list (avoid rebuilding per conversation)
+    // Cache categories
     const categories = await Category.find({ active: true });
-    const cachedAiConfig = { ...aiConfig, _cachedCategories: categories };
+
+    // Load active incidents for this instance
+    const activeIncidents = await Incident.find({
+      active: true,
+      $or: [{ instance: 'all' }, { instance }],
+    }).sort({ startedAt: 1 });
 
     let evaluated = 0;
     let errors = 0;
@@ -234,8 +240,45 @@ async function processUpload(batch, convsPath, msgsPath, instance) {
 
     // Process in parallel batches of CONCURRENCY
     async function evaluateOne({ conv, convMessages }) {
-      const quantitative = evaluateQuantitative(conv, weights);
-      const qualitative = await evaluateQualitative(convMessages, conv, categories, aiConfig);
+      // Check if conversation falls within any incident
+      const convStart = conv.startedAt;
+      const incident = activeIncidents.find(inc =>
+        convStart >= inc.startedAt && convStart <= inc.endedAt
+      );
+      const relaxFactor = incident ? (incident.relaxFactor || 2) : 1;
+
+      // If incident active, relax quantitative thresholds
+      let adjustedWeights = weights;
+      if (relaxFactor > 1) {
+        adjustedWeights = {
+          ...weights,
+          firstResponse: {
+            ...(weights.firstResponse || {}),
+            excellent: ((weights.firstResponse?.excellent) || 30) * relaxFactor,
+            good: ((weights.firstResponse?.good) || 60) * relaxFactor,
+            acceptable: ((weights.firstResponse?.acceptable) || 120) * relaxFactor,
+            slow: ((weights.firstResponse?.slow) || 300) * relaxFactor,
+            verySlow: ((weights.firstResponse?.verySlow) || 600) * relaxFactor,
+          },
+          resolution: {
+            ...(weights.resolution || {}),
+            excellent: ((weights.resolution?.excellent) || 300) * relaxFactor,
+            good: ((weights.resolution?.good) || 600) * relaxFactor,
+            acceptable: ((weights.resolution?.acceptable) || 1200) * relaxFactor,
+            slow: ((weights.resolution?.slow) || 1800) * relaxFactor,
+            verySlow: ((weights.resolution?.verySlow) || 3600) * relaxFactor,
+          },
+        };
+      }
+
+      const quantitative = evaluateQuantitative(conv, adjustedWeights);
+
+      // Pass incident context to AI
+      const aiConfigWithIncident = incident
+        ? { ...aiConfig, _incidentContext: `IMPORTANTE: Durante esta conversación hubo un incidente operativo activo: "${incident.title}" (${incident.description || ''}). Sé más tolerante con tiempos de respuesta y resolución. No penalices al agente por demoras si el volumen era alto.` }
+        : aiConfig;
+
+      const qualitative = await evaluateQualitative(convMessages, conv, categories, aiConfigWithIncident);
 
       const finalScore = Math.round(quantitative.totalScore * qWeight + qualitative.totalScore * cWeight);
       let grade;
@@ -272,6 +315,10 @@ async function processUpload(batch, convsPath, msgsPath, instance) {
           needsAttention: qualitative.needsAttention || false,
           attentionReason: qualitative.attentionReason || '',
           coachingTip: qualitative.coachingTip || '',
+          affectedByIncident: !!incident,
+          incidentId: incident?._id || null,
+          incidentTitle: incident?.title || null,
+          relaxFactor,
           finalScore,
           grade,
           status: 'scored',

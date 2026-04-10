@@ -10,6 +10,7 @@ const evaluationsRouter = require('./routes/evaluations');
 const reportsRouter = require('./routes/reports');
 const settingsRouter = require('./routes/settings');
 const authRouter = require('./routes/auth');
+const incidentsRouter = require('./routes/incidents');
 const { agentsRouter, categoriesRouter, contactsRouter } = require('./routes/crud');
 const { errorHandler } = require('./middleware/errorHandler');
 const { auth, requireRole } = require('./middleware/auth');
@@ -60,6 +61,7 @@ app.use('/api/upload', auth, requireRole('admin', 'supervisor'), uploadRouter);
 app.use('/api/contacts', auth, requireRole('admin', 'supervisor'), contactsRouter);
 app.use('/api/agents', auth, requireRole('admin', 'supervisor'), agentsRouter);
 app.use('/api/categories', auth, requireRole('admin', 'supervisor'), categoriesRouter);
+app.use('/api/incidents', auth, requireRole('admin', 'supervisor'), incidentsRouter);
 
 // All roles: dashboard, evaluations, reports (read only)
 app.use('/api/dashboard', auth, dashboardRouter);

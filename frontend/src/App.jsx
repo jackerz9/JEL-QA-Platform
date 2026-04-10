@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Routes, Route, NavLink, Navigate } from 'react-router-dom';
-import { LayoutDashboard, Upload, Users, Tag, UserCircle, Activity, FileText, Settings, Shield, LogOut, ChevronDown } from 'lucide-react';
+import { LayoutDashboard, Upload, Users, Tag, UserCircle, Activity, FileText, Settings, Shield, LogOut, ChevronDown, AlertTriangle } from 'lucide-react';
 import { useAuth } from './utils/AuthContext';
 import Dashboard from './pages/Dashboard';
 import UploadPage from './pages/UploadPage';
@@ -12,6 +12,7 @@ import Categories from './pages/Categories';
 import Contacts from './pages/Contacts';
 import SettingsPage from './pages/SettingsPage';
 import UsersPage from './pages/UsersPage';
+import IncidentsPage from './pages/IncidentsPage';
 import Login from './pages/Login';
 
 const SECTIONS = [
@@ -21,6 +22,7 @@ const SECTIONS = [
       { to: '/upload', icon: Upload, label: 'Evaluar', roles: ['admin', 'supervisor'] },
       { to: '/evaluations', icon: Activity, label: 'Evaluaciones', roles: ['admin', 'supervisor', 'viewer'] },
       { to: '/reports', icon: FileText, label: 'Reportes', roles: ['admin', 'supervisor', 'viewer'] },
+      { to: '/incidents', icon: AlertTriangle, label: 'Incidentes', roles: ['admin', 'supervisor'] },
     ],
   },
   {
@@ -151,6 +153,7 @@ function AuthenticatedApp() {
             <Route path="/agents" element={<ProtectedRoute roles={['admin', 'supervisor']}><Agents /></ProtectedRoute>} />
             <Route path="/categories" element={<ProtectedRoute roles={['admin', 'supervisor']}><Categories /></ProtectedRoute>} />
             <Route path="/contacts" element={<ProtectedRoute roles={['admin', 'supervisor']}><Contacts /></ProtectedRoute>} />
+            <Route path="/incidents" element={<ProtectedRoute roles={['admin', 'supervisor']}><IncidentsPage /></ProtectedRoute>} />
             <Route path="/users" element={<ProtectedRoute roles={['admin']}><UsersPage /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute roles={['admin']}><SettingsPage /></ProtectedRoute>} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />

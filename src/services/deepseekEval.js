@@ -87,11 +87,14 @@ async function evaluateQualitative(messages, conversation, categories = [], aiCo
     categoryList = 'Sin categorías disponibles.';
   }
 
+  // Incident context (injected when evaluation happens during an incident)
+  const incidentContext = ai._incidentContext || '';
+
   const prompt = `Eres un evaluador de calidad de atención al cliente.
 
 CONTEXTO DE LA EMPRESA:
 ${companyContext}
-
+${incidentContext ? `\nSITUACIÓN ESPECIAL:\n${incidentContext}\n` : ''}
 REGLAS DE TRATO:
 ${treatmentRules}
 
