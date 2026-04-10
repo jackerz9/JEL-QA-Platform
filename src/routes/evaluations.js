@@ -44,7 +44,7 @@ router.get('/', async (req, res) => {
 
   const enriched = evaluations.map(e => ({
     ...e.toObject(),
-    agentName: agentMap[e.agentId] || `Agente ${e.agentId}`,
+    agentName: agentMap[e.agentId] || (e.agentId ? `Agente ${e.agentId}` : 'Sin asignar'),
   }));
 
   res.json({ evaluations: enriched, total });
@@ -119,7 +119,7 @@ router.get('/:conversationId', async (req, res) => {
     evaluation,
     conversation,
     messages,
-    agentName: agent?.name || `Agente ${evaluation.agentId}`,
+    agentName: agent?.name || (evaluation.agentId ? `Agente ${evaluation.agentId}` : 'Sin asignar'),
     channelName: channel?.name || conversation?.openedByChannel || 'Desconocido',
   });
 });

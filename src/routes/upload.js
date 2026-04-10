@@ -232,6 +232,15 @@ async function processUpload(batch, convsPath, msgsPath, instance) {
       if (agentMessages.length < minAgent) { skipped++; continue; }
       if (filters.excludeBotOnly && agentMessages.length === 0) { skipped++; continue; }
       if (filters.excludeUnresolved && !conv.resolvedAt) { skipped++; continue; }
+      if (!conv.assigneeId) {
+        // Try to detect agent from messages (senderType = 'user' means agent in Respond.io)
+        const agentMsg = convMessages.find(m => m.senderType === 'user' && m.senderId);
+        if (agentMsg?.senderId) {
+          conv.assigneeId = agentMsg.senderId;
+        } else {
+          skipped++; continue; // No agent at all
+        }
+      }
 
       toEvaluate.push({ conv, convMessages });
     }
