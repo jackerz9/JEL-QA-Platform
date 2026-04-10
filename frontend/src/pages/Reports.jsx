@@ -1,358 +1,514 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { FileText, AlertTriangle, TrendingUp, MessageSquare } from 'lucide-react';
+import { Users, Tag, Heart, AlertTriangle, FileDown, Download } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { api, fetchAuth } from '../utils/api';
 
-const SENT_COLORS = { muy_positivo: '#10B981', positivo: '#34D399', neutral: '#94A3B8', negativo: '#F59E0B', muy_negativo: '#EF4444' };
-const GRADE_COLORS = { A: '#10B981', B: '#3B82F6', C: '#F59E0B', D: '#F97316', F: '#EF4444' };
+const TABS = [
+  { id: 'agents', label: 'Por operador', icon: Users },
+  { id: 'categories', label: 'Por categoría', icon: Tag },
+  { id: 'sentiment', label: 'Sentimiento', icon: Heart },
+  { id: 'incidents', label: 'Incidentes', icon: AlertTriangle },
+];
 
-function ScoreRing({ value, label, color = '#F97316', size = 72 }) {
-  const r = (size - 8) / 2;
-  const circ = 2 * Math.PI * r;
-  const offset = circ - (value / 100) * circ;
+const SENT_COLORS = { muy_positivo: '#059669', positivo: '#10B981', neutral: '#94A3B8', negativo: '#F59E0B', muy_negativo: '#EF4444' };
+const SENT_LABELS = { muy_positivo: 'Muy positivo', positivo: 'Positivo', neutral: 'Neutral', negativo: 'Negativo', muy_negativo: 'Muy negativo' };
+const GRADE_COLORS = { A: '#059669', B: '#2563EB', C: '#D97706', D: '#EA580C', F: '#DC2626' };
+
+export default function Reports() {
+  const [tab, setTab] = useState('agents');
+  const [filters, setFilters] = useState({ instance: '', dateFrom: '', dateTo: '' });
+
   return (
-    <div className="flex flex-col items-center gap-1">
-      <svg width={size} height={size}>
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#334155" strokeWidth="5" />
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth="5"
-          strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
-          transform={`rotate(-90 ${size/2} ${size/2})`} />
-        <text x={size/2} y={size/2} textAnchor="middle" dominantBaseline="central"
-          fill={color} fontSize="18" fontWeight="600">{value}</text>
-      </svg>
-      <span className="text-[11px] text-slate-500">{label}</span>
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">Reportes</h1>
+          <p className="text-sm text-slate-500 mt-0.5">Análisis detallado de calidad de atención</p>
+        </div>
+        <div className="flex gap-3">
+          <select className="select" value={filters.instance} onChange={e => setFilters({ ...filters, instance: e.target.value })}>
+            <option value="">Todas</option>
+            <option value="venezuela">Venezuela</option>
+            <option value="internacional">Internacional</option>
+          </select>
+          <input type="date" className="input" value={filters.dateFrom} onChange={e => setFilters({ ...filters, dateFrom: e.target.value })} />
+          <input type="date" className="input" value={filters.dateTo} onChange={e => setFilters({ ...filters, dateTo: e.target.value })} />
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 mb-6 bg-white border border-surface-border rounded-xl p-1">
+        {TABS.map(t => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+              tab === t.id ? 'bg-jel-orange text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            <t.icon size={16} /> {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'agents' && <AgentsReport filters={filters} />}
+      {tab === 'categories' && <CategoriesReport filters={filters} />}
+      {tab === 'sentiment' && <SentimentReport filters={filters} />}
+      {tab === 'incidents' && <IncidentsReport filters={filters} />}
     </div>
   );
 }
 
-export default function Reports() {
-  const navigate = useNavigate();
+// ═══════════════════════════════════════════════
+// AGENTS REPORT
+// ═══════════════════════════════════════════════
+function AgentsReport({ filters }) {
   const [agents, setAgents] = useState([]);
-  const [agentId, setAgentId] = useState('');
-  const [dateFrom, setDateFrom] = useState(new Date().toISOString().split('T')[0]);
-  const [dateTo, setDateTo] = useState('');
-  const [instance, setInstance] = useState('');
-  const [report, setReport] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [agentsSummary, setAgentsSummary] = useState([]);
+  const [selected, setSelected] = useState(null);
+  const [detail, setDetail] = useState(null);
+  const [exporting, setExporting] = useState(false);
 
-  useEffect(() => { api.getAgents().then(setAgents).catch(() => {}); }, []);
-
-  // Load agents summary on date change
   useEffect(() => {
-    if (!dateFrom) return;
-    const params = { dateFrom };
-    if (dateTo) params.dateTo = dateTo;
-    if (instance) params.instance = instance;
+    const params = {};
+    if (filters.instance) params.instance = filters.instance;
+    if (filters.dateFrom) params.dateFrom = filters.dateFrom;
+    if (filters.dateTo) params.dateTo = filters.dateTo;
     fetchAuth(`/reports/agents-summary?${new URLSearchParams(params)}`)
-      .then(r => r.json()).then(setAgentsSummary).catch(() => {});
-  }, [dateFrom, dateTo, instance]);
+      .then(r => r.json()).then(setAgents).catch(console.error);
+  }, [filters]);
 
-  const loadReport = async () => {
-    if (!agentId || !dateFrom) return;
-    setLoading(true);
+  const loadDetail = async (agentId) => {
+    setSelected(agentId);
+    const params = { agentId };
+    if (filters.instance) params.instance = filters.instance;
+    if (filters.dateFrom) params.dateFrom = filters.dateFrom;
+    if (filters.dateTo) params.dateTo = filters.dateTo;
+    if (!params.dateFrom) params.dateFrom = '2020-01-01';
+    const res = await fetchAuth(`/reports/agent-daily?${new URLSearchParams(params)}`);
+    setDetail(await res.json());
+  };
+
+  const exportPDF = async () => {
+    if (!selected || !detail) return;
+    setExporting(true);
     try {
-      const params = { agentId, dateFrom };
-      if (dateTo) params.dateTo = dateTo;
-      if (instance) params.instance = instance;
-      const res = await fetchAuth(`/reports/agent-daily?${new URLSearchParams(params)}`);
-      const data = await res.json();
-      setReport(data);
+      const res = await fetchAuth(`/reports/agent-pdf?${new URLSearchParams({
+        agentId: selected,
+        instance: filters.instance || '',
+        dateFrom: filters.dateFrom || '2020-01-01',
+        dateTo: filters.dateTo || '',
+      })}`);
+      if (!res.ok) throw new Error('Error generando PDF');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `reporte-${detail?.agent?.name || 'agente'}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
     } catch (err) {
-      console.error(err);
+      alert('Error exportando PDF: ' + err.message);
     } finally {
-      setLoading(false);
+      setExporting(false);
     }
   };
 
-  const s = report?.summary;
-  const h = report?.highlights;
-  const c = report?.coaching;
-
-  const gradeData = s ? Object.entries(s.grades).filter(([,v]) => v > 0).map(([name, value]) => ({ name, value })) : [];
-  const sentData = s ? Object.entries(s.sentiments).filter(([,v]) => v > 0).map(([name, value]) => ({ name: name.replace('_', ' '), value, key: name })) : [];
+  const d = detail;
+  const s = d?.summary;
+  const gradeData = s ? [
+    { name: 'A', value: s.grades?.A || 0 }, { name: 'B', value: s.grades?.B || 0 },
+    { name: 'C', value: s.grades?.C || 0 }, { name: 'D', value: s.grades?.D || 0 },
+    { name: 'F', value: s.grades?.F || 0 },
+  ].filter(g => g.value > 0) : [];
 
   return (
-    <div>
-      <h1 className="text-xl font-semibold mb-6">Reportes por agente</h1>
-
-      {/* Filters */}
-      <div className="card mb-6">
-        <div className="flex gap-3 items-end">
-          <div className="flex-1">
-            <label className="text-xs text-slate-500 block mb-1">Agente</label>
-            <select className="select w-full text-sm" value={agentId} onChange={e => setAgentId(e.target.value)}>
-              <option value="">Seleccionar agente...</option>
-              {agents.map(a => <option key={a._id} value={a.respondioId}>{a.name}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="text-xs text-slate-500 block mb-1">Desde</label>
-            <input type="date" className="input text-sm" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
-          </div>
-          <div>
-            <label className="text-xs text-slate-500 block mb-1">Hasta (opcional)</label>
-            <input type="date" className="input text-sm" value={dateTo} onChange={e => setDateTo(e.target.value)} />
-          </div>
-          <div>
-            <label className="text-xs text-slate-500 block mb-1">Instancia</label>
-            <select className="select text-sm" value={instance} onChange={e => setInstance(e.target.value)}>
-              <option value="">Todas</option>
-              <option value="venezuela">Venezuela</option>
-              <option value="internacional">Internacional</option>
-            </select>
-          </div>
-          <button className="btn-primary text-sm" onClick={loadReport} disabled={!agentId || loading}>
-            {loading ? 'Generando...' : 'Generar reporte'}
-          </button>
+    <div className="grid grid-cols-4 gap-4">
+      {/* Agent list */}
+      <div className="card col-span-1 max-h-[70vh] overflow-y-auto">
+        <h3 className="text-sm font-semibold text-slate-700 mb-3">Agentes</h3>
+        <div className="space-y-1">
+          {agents.map(a => (
+            <button
+              key={a._id}
+              onClick={() => loadDetail(a._id)}
+              className={`w-full text-left px-3 py-2.5 rounded-xl text-sm transition-all ${
+                selected === a._id ? 'bg-jel-orange text-white' : 'hover:bg-slate-50 text-slate-700'
+              }`}
+            >
+              <p className="font-medium truncate">{a.agentName}</p>
+              <p className={`text-xs ${selected === a._id ? 'text-white/70' : 'text-slate-400'}`}>
+                {a.totalEvals} evals · Score: {Math.round(a.avgFinal)}
+              </p>
+            </button>
+          ))}
+          {agents.length === 0 && <p className="text-sm text-slate-400 text-center py-4">Sin datos</p>}
         </div>
       </div>
 
-      {/* Agents overview table */}
-      {!report && agentsSummary.length > 0 && (
-        <div className="card">
-          <h2 className="text-sm font-medium text-slate-600 mb-4">Resumen de agentes — {dateFrom}</h2>
-          <div className="space-y-2">
-            {agentsSummary.map(a => (
-              <div
-                key={a._id}
-                className="flex items-center gap-4 py-2.5 px-3 rounded-lg bg-slate-50 cursor-pointer hover:bg-slate-100"
-                onClick={() => { setAgentId(a._id); }}
-              >
-                <div className="flex-1">
-                  <p className="text-sm font-medium">{a.agentName}</p>
-                  <p className="text-xs text-slate-500">{a.totalEvals} evaluaciones</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-lg font-semibold" style={{ color: a.avgFinal >= 75 ? '#10B981' : a.avgFinal >= 50 ? '#F59E0B' : '#EF4444' }}>
-                    {Math.round(a.avgFinal)}
-                  </p>
-                  <p className="text-[10px] text-slate-500">score</p>
-                </div>
-                <div className="text-center">
-                  <p className={`text-sm ${a.avgSentiment > 0 ? 'text-emerald-600' : a.avgSentiment < -20 ? 'text-red-600' : 'text-slate-500'}`}>
-                    {a.avgSentiment > 0 ? '+' : ''}{Math.round(a.avgSentiment || 0)}
-                  </p>
-                  <p className="text-[10px] text-slate-500">sentimiento</p>
-                </div>
-                {a.alertCount > 0 && (
-                  <span className="badge bg-red-50 text-red-600 border border-red-200">
-                    {a.alertCount} alertas
-                  </span>
-                )}
+      {/* Agent detail */}
+      <div className="col-span-3">
+        {!d || !s ? (
+          <div className="card text-center py-16 text-slate-400">Selecciona un agente para ver su reporte</div>
+        ) : (
+          <div className="space-y-4">
+            {/* Header */}
+            <div className="card flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-slate-800">{d.agent?.name}</h2>
+                <p className="text-sm text-slate-500">{s.totalEvals} evaluaciones · {d.agent?.instance}</p>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Report */}
-      {report && s && (
-        <div>
-          {/* Header */}
-          <div className="card mb-4 flex items-center gap-6">
-            <div>
-              <h2 className="text-lg font-semibold">{report.agent?.name}</h2>
-              <p className="text-sm text-slate-500">{dateFrom}{dateTo ? ` — ${dateTo}` : ''} · {s.totalEvals} conversaciones</p>
-            </div>
-            <div className="ml-auto flex gap-6">
-              <ScoreRing value={s.avgFinal} label="Final" color={s.avgFinal >= 75 ? '#10B981' : s.avgFinal >= 50 ? '#F59E0B' : '#EF4444'} />
-              <ScoreRing value={s.avgQuant} label="Cuantitativo" color="#F97316" />
-              <ScoreRing value={s.avgQual} label="Cualitativo" color="#3B82F6" />
-            </div>
-          </div>
-
-          {/* Detail scores + charts */}
-          <div className="grid grid-cols-4 gap-4 mb-4">
-            <div className="card text-center">
-              <p className="text-2xl font-semibold">{s.avgTone}</p>
-              <p className="text-xs text-slate-500">Tono</p>
-            </div>
-            <div className="card text-center">
-              <p className="text-2xl font-semibold">{s.avgEmpathy}</p>
-              <p className="text-xs text-slate-500">Empatía</p>
-            </div>
-            <div className="card text-center">
-              <p className="text-2xl font-semibold">{s.avgResolution}</p>
-              <p className="text-xs text-slate-500">Resolución</p>
-            </div>
-            <div className="card text-center">
-              <p className="text-2xl font-semibold">{s.avgProfessionalism}</p>
-              <p className="text-xs text-slate-500">Profesionalismo</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4 mb-4">
-            {/* Grades */}
-            <div className="card">
-              <h3 className="text-sm font-medium text-slate-600 mb-3">Notas</h3>
-              <ResponsiveContainer width="100%" height={160}>
-                <BarChart data={gradeData}>
-                  <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#94A3B8' }} />
-                  <YAxis tick={{ fontSize: 11, fill: '#64748B' }} />
-                  <Tooltip contentStyle={{ background: '#1E293B', border: '1px solid #475569', borderRadius: 8 }} />
-                  <Bar dataKey="value" radius={[4,4,0,0]}>
-                    {gradeData.map(d => <Cell key={d.name} fill={GRADE_COLORS[d.name]} />)}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              <button onClick={exportPDF} disabled={exporting} className="btn-primary text-sm flex items-center gap-2">
+                <Download size={16} /> {exporting ? 'Generando...' : 'Exportar PDF'}
+              </button>
             </div>
 
-            {/* Sentiment */}
-            <div className="card">
-              <h3 className="text-sm font-medium text-slate-600 mb-3">
-                Sentimiento <span className={`ml-2 font-mono text-sm ${s.avgSentiment > 0 ? 'text-emerald-600' : s.avgSentiment < -20 ? 'text-red-600' : 'text-slate-500'}`}>
-                  {s.avgSentiment > 0 ? '+' : ''}{s.avgSentiment}
-                </span>
-              </h3>
-              <ResponsiveContainer width="100%" height={160}>
-                <PieChart>
-                  <Pie data={sentData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={40} outerRadius={65} paddingAngle={2}>
-                    {sentData.map(d => <Cell key={d.key} fill={SENT_COLORS[d.key]} />)}
-                  </Pie>
-                  <Tooltip contentStyle={{ background: '#1E293B', border: '1px solid #475569', borderRadius: 8 }} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-
-            {/* Categories */}
-            <div className="card">
-              <h3 className="text-sm font-medium text-slate-600 mb-3">Categorías</h3>
-              <div className="space-y-1.5 max-h-[160px] overflow-y-auto">
-                {s.categoryBreakdown.map(c => (
-                  <div key={c.name} className="flex items-center gap-2">
-                    <span className="text-xs text-slate-500 flex-1 truncate">{c.name}</span>
-                    <span className="text-xs font-mono text-slate-500">{c.count}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Alerts */}
-          {h.alerts.length > 0 && (
-            <div className="card mb-4 border-red-200">
-              <h3 className="text-sm font-medium text-red-600 flex items-center gap-2 mb-3">
-                <AlertTriangle size={16} /> Chats que requieren atención ({h.alerts.length})
-              </h3>
-              <div className="space-y-2">
-                {h.alerts.map(a => (
-                  <div
-                    key={a.conversationId}
-                    className="flex items-center gap-3 py-2 px-3 rounded-lg bg-red-50/50 cursor-pointer hover:bg-red-50"
-                    onClick={() => navigate(`/evaluations/${a.conversationId}`)}
-                  >
-                    <span className="text-red-600">⚠</span>
-                    <div className="flex-1">
-                      <p className="text-sm">{a.reason}</p>
-                      <p className="text-xs text-slate-500">Conv: ...{a.conversationId?.slice(-8)}</p>
-                    </div>
-                    <span className="text-sm font-mono text-red-600">{a.finalScore}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            {/* Coaching */}
-            <div className="card">
-              <h3 className="text-sm font-medium text-blue-600 flex items-center gap-2 mb-3">
-                <MessageSquare size={16} /> Coaching — áreas de mejora recurrentes
-              </h3>
-              {c.topImprovements.length > 0 ? (
-                <div className="space-y-2">
-                  {c.topImprovements.map((imp, i) => (
-                    <div key={i} className="flex items-start gap-2">
-                      <span className="badge bg-amber-50 text-amber-600 shrink-0">{imp.count}x</span>
-                      <p className="text-sm text-slate-600">{imp.text}</p>
-                    </div>
-                  ))}
-                </div>
-              ) : <p className="text-sm text-slate-500">Sin datos suficientes</p>}
-
-              {c.tips.length > 0 && (
-                <div className="mt-4 pt-3 border-t border-slate-200">
-                  <p className="text-xs text-slate-500 mb-2">Tips específicos por chat:</p>
-                  {c.tips.slice(0, 5).map((t, i) => (
-                    <div key={i} className="py-1.5 flex items-start gap-2">
-                      <span className={`badge grade-${t.grade} shrink-0`}>{t.grade}</span>
-                      <p className="text-xs text-slate-600">{t.tip}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Strengths + Best/Worst */}
-            <div className="card">
-              <h3 className="text-sm font-medium text-emerald-600 flex items-center gap-2 mb-3">
-                <TrendingUp size={16} /> Fortalezas recurrentes
-              </h3>
-              {c.topStrengths.length > 0 ? (
-                <div className="space-y-2 mb-4">
-                  {c.topStrengths.map((s, i) => (
-                    <div key={i} className="flex items-start gap-2">
-                      <span className="badge bg-emerald-50 text-emerald-600 shrink-0">{s.count}x</span>
-                      <p className="text-sm text-slate-600">{s.text}</p>
-                    </div>
-                  ))}
-                </div>
-              ) : <p className="text-sm text-slate-500 mb-4">Sin datos suficientes</p>}
-
-              <div className="border-t border-slate-200 pt-3">
-                <p className="text-xs text-emerald-600 mb-2">Mejores chats:</p>
-                {h.best.map(b => (
-                  <div key={b.conversationId} className="py-1 flex items-center gap-2 cursor-pointer hover:bg-slate-50 rounded px-1"
-                    onClick={() => navigate(`/evaluations/${b.conversationId}`)}>
-                    <span className="text-sm font-mono text-emerald-600">{b.finalScore}</span>
-                    <span className="text-xs text-slate-500 flex-1 truncate">{b.summary}</span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="border-t border-slate-200 pt-3 mt-3">
-                <p className="text-xs text-red-600 mb-2">Chats a revisar:</p>
-                {h.worst.map(b => (
-                  <div key={b.conversationId} className="py-1 flex items-center gap-2 cursor-pointer hover:bg-slate-50 rounded px-1"
-                    onClick={() => navigate(`/evaluations/${b.conversationId}`)}>
-                    <span className="text-sm font-mono text-red-600">{b.finalScore}</span>
-                    <span className="text-xs text-slate-500 flex-1 truncate">{b.summary}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* All evaluations */}
-          <div className="card">
-            <h3 className="text-sm font-medium text-slate-600 mb-3">Todas las conversaciones ({s.totalEvals})</h3>
-            <div className="space-y-1">
-              {report.evaluations.map(ev => (
-                <div
-                  key={ev.conversationId}
-                  className={`flex items-center gap-3 py-2 px-3 rounded-lg cursor-pointer hover:bg-slate-50 ${ev.needsAttention ? 'bg-red-50/50' : ''}`}
-                  onClick={() => navigate(`/evaluations/${ev.conversationId}`)}
-                >
-                  <span className={`badge grade-${ev.grade}`}>{ev.grade}</span>
-                  <span className="text-sm font-mono w-8">{ev.finalScore}</span>
-                  <span className="text-base">
-                    {ev.sentiment?.label === 'muy_positivo' ? '😊' :
-                     ev.sentiment?.label === 'positivo' ? '🙂' :
-                     ev.sentiment?.label === 'neutral' ? '😐' :
-                     ev.sentiment?.label === 'negativo' ? '😠' :
-                     ev.sentiment?.label === 'muy_negativo' ? '🤬' : '—'}
-                  </span>
-                  <span className="text-xs text-slate-500 flex-1 truncate">{ev.summary}</span>
-                  <span className="text-xs text-slate-500 truncate max-w-[180px]">{ev.aiCategory || ''}</span>
-                  {ev.needsAttention && <span className="text-red-600">⚠</span>}
+            {/* KPIs */}
+            <div className="grid grid-cols-4 gap-3">
+              {[
+                { label: 'Score final', value: s.avgFinal, color: s.avgFinal >= 75 ? '#059669' : s.avgFinal >= 50 ? '#D97706' : '#DC2626' },
+                { label: 'Cuantitativo', value: s.avgQuant, color: '#2563EB' },
+                { label: 'Cualitativo', value: s.avgQual, color: '#7C3AED' },
+                { label: 'Sentimiento', value: s.avgSentiment > 0 ? `+${s.avgSentiment}` : s.avgSentiment, color: s.avgSentiment >= 0 ? '#059669' : '#DC2626' },
+              ].map(kpi => (
+                <div key={kpi.label} className="card text-center py-3">
+                  <p className="text-xs text-slate-500">{kpi.label}</p>
+                  <p className="text-2xl font-bold mt-1" style={{ color: kpi.color }}>{kpi.value}</p>
                 </div>
               ))}
             </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              {/* Scores breakdown */}
+              <div className="card">
+                <h3 className="text-sm font-semibold text-slate-700 mb-3">Scores detallados</h3>
+                {[
+                  { label: 'Tono', val: s.avgTone }, { label: 'Empatía', val: s.avgEmpathy },
+                  { label: 'Resolución', val: s.avgResolution }, { label: 'Profesionalismo', val: s.avgProfessionalism },
+                ].map(item => (
+                  <div key={item.label} className="flex items-center gap-3 mb-2">
+                    <span className="text-xs text-slate-500 w-28">{item.label}</span>
+                    <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width: `${item.val}%`, backgroundColor: item.val >= 75 ? '#059669' : item.val >= 50 ? '#D97706' : '#DC2626' }} />
+                    </div>
+                    <span className="text-sm font-mono font-semibold w-8 text-right" style={{ color: item.val >= 75 ? '#059669' : item.val >= 50 ? '#D97706' : '#DC2626' }}>{item.val}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Grades */}
+              <div className="card">
+                <h3 className="text-sm font-semibold text-slate-700 mb-3">Distribución de notas</h3>
+                <ResponsiveContainer width="100%" height={140}>
+                  <BarChart data={gradeData} layout="horizontal">
+                    <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                    <YAxis tick={{ fontSize: 11 }} />
+                    <Tooltip contentStyle={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 12 }} />
+                    <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                      {gradeData.map(d => <Cell key={d.name} fill={GRADE_COLORS[d.name]} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Coaching */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="card">
+                <h3 className="text-sm font-semibold text-emerald-700 mb-2">Fortalezas recurrentes</h3>
+                {d.coaching?.topStrengths?.map((s, i) => (
+                  <p key={i} className="text-xs text-slate-600 py-1 flex items-start gap-2"><span className="text-emerald-500 mt-0.5">✓</span> {s.text} <span className="text-slate-400">({s.count}x)</span></p>
+                ))}
+                {(!d.coaching?.topStrengths || d.coaching.topStrengths.length === 0) && <p className="text-xs text-slate-400">Sin datos</p>}
+              </div>
+              <div className="card">
+                <h3 className="text-sm font-semibold text-amber-700 mb-2">Áreas de mejora recurrentes</h3>
+                {d.coaching?.topImprovements?.map((s, i) => (
+                  <p key={i} className="text-xs text-slate-600 py-1 flex items-start gap-2"><span className="text-amber-500 mt-0.5">→</span> {s.text} <span className="text-slate-400">({s.count}x)</span></p>
+                ))}
+                {(!d.coaching?.topImprovements || d.coaching.topImprovements.length === 0) && <p className="text-xs text-slate-400">Sin datos</p>}
+              </div>
+            </div>
           </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════
+// CATEGORIES REPORT
+// ═══════════════════════════════════════════════
+function CategoriesReport({ filters }) {
+  const [data, setData] = useState([]);
+
+  useEffect(() => {
+    const params = {};
+    if (filters.instance) params.instance = filters.instance;
+    if (filters.dateFrom) params.dateFrom = filters.dateFrom;
+    if (filters.dateTo) params.dateTo = filters.dateTo;
+    fetchAuth(`/reports/categories?${new URLSearchParams(params)}`)
+      .then(r => r.json()).then(setData).catch(console.error);
+  }, [filters]);
+
+  const total = data.reduce((s, d) => s + d.count, 0);
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-3 gap-4">
+        <div className="card text-center py-4">
+          <p className="text-xs text-slate-500">Total categorías</p>
+          <p className="text-2xl font-bold text-slate-800 mt-1">{data.length}</p>
         </div>
-      )}
+        <div className="card text-center py-4">
+          <p className="text-xs text-slate-500">Total evaluaciones</p>
+          <p className="text-2xl font-bold text-slate-800 mt-1">{total}</p>
+        </div>
+        <div className="card text-center py-4">
+          <p className="text-xs text-slate-500">Score promedio</p>
+          <p className="text-2xl font-bold text-slate-800 mt-1">
+            {data.length > 0 ? Math.round(data.reduce((s, d) => s + d.avgScore * d.count, 0) / total) : '—'}
+          </p>
+        </div>
+      </div>
+
+      <div className="card">
+        <h3 className="text-sm font-semibold text-slate-700 mb-4">Categorías por volumen y calidad</h3>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-xs text-slate-500 border-b border-slate-200">
+              <th className="pb-2 font-medium">Categoría</th>
+              <th className="pb-2 font-medium text-center">Cantidad</th>
+              <th className="pb-2 font-medium text-center">%</th>
+              <th className="pb-2 font-medium text-center">Score prom.</th>
+              <th className="pb-2 font-medium text-center">Sent. prom.</th>
+              <th className="pb-2 font-medium text-center">Alertas</th>
+              <th className="pb-2 font-medium">Notas</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.map(cat => (
+              <tr key={cat._id || 'none'} className="border-b border-slate-100 hover:bg-slate-50">
+                <td className="py-2.5 text-sm font-medium text-slate-700">{cat._id || 'Sin categoría'}</td>
+                <td className="py-2.5 text-center font-mono">{cat.count}</td>
+                <td className="py-2.5 text-center text-slate-500">{total > 0 ? ((cat.count / total) * 100).toFixed(1) : 0}%</td>
+                <td className="py-2.5 text-center">
+                  <span className="font-semibold" style={{ color: cat.avgScore >= 75 ? '#059669' : cat.avgScore >= 50 ? '#D97706' : '#DC2626' }}>
+                    {Math.round(cat.avgScore)}
+                  </span>
+                </td>
+                <td className="py-2.5 text-center">
+                  <span style={{ color: cat.avgSentiment >= 0 ? '#059669' : '#DC2626' }}>
+                    {cat.avgSentiment > 0 ? '+' : ''}{Math.round(cat.avgSentiment)}
+                  </span>
+                </td>
+                <td className="py-2.5 text-center">{cat.alertCount > 0 ? <span className="text-red-600 font-semibold">{cat.alertCount}</span> : '—'}</td>
+                <td className="py-2.5">
+                  <div className="flex gap-1">
+                    {['A', 'B', 'C', 'D', 'F'].map(g => {
+                      const v = cat[`grade${g}`] || 0;
+                      return v > 0 ? <span key={g} className={`badge grade-${g} text-[10px]`}>{g}:{v}</span> : null;
+                    })}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════
+// SENTIMENT REPORT
+// ═══════════════════════════════════════════════
+function SentimentReport({ filters }) {
+  const [data, setData] = useState(null);
+
+  useEffect(() => {
+    const params = {};
+    if (filters.instance) params.instance = filters.instance;
+    if (filters.dateFrom) params.dateFrom = filters.dateFrom;
+    if (filters.dateTo) params.dateTo = filters.dateTo;
+    fetchAuth(`/reports/sentiment?${new URLSearchParams(params)}`)
+      .then(r => r.json()).then(setData).catch(console.error);
+  }, [filters]);
+
+  if (!data) return <div className="card text-center py-12 text-slate-400">Cargando...</div>;
+
+  const dist = data.distribution || [];
+  const total = dist.reduce((s, d) => s + d.count, 0);
+
+  return (
+    <div className="space-y-4">
+      {/* Distribution */}
+      <div className="grid grid-cols-5 gap-3">
+        {['muy_positivo', 'positivo', 'neutral', 'negativo', 'muy_negativo'].map(label => {
+          const item = dist.find(d => d._id === label);
+          const count = item?.count || 0;
+          return (
+            <div key={label} className="card text-center py-4">
+              <p className="text-xs text-slate-500">{SENT_LABELS[label]}</p>
+              <p className="text-2xl font-bold mt-1" style={{ color: SENT_COLORS[label] }}>{count}</p>
+              <p className="text-xs text-slate-400">{total > 0 ? ((count / total) * 100).toFixed(0) : 0}%</p>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        {/* Pie chart */}
+        <div className="card">
+          <h3 className="text-sm font-semibold text-slate-700 mb-3">Distribución</h3>
+          <ResponsiveContainer width="100%" height={220}>
+            <PieChart>
+              <Pie data={dist.map(d => ({ name: SENT_LABELS[d._id] || d._id, value: d.count, fill: SENT_COLORS[d._id] || '#94A3B8' }))} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={55} outerRadius={80} paddingAngle={3}>
+                {dist.map(d => <Cell key={d._id} fill={SENT_COLORS[d._id] || '#94A3B8'} />)}
+              </Pie>
+              <Tooltip contentStyle={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 12 }} />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Timeline */}
+        <div className="card">
+          <h3 className="text-sm font-semibold text-slate-700 mb-3">Sentimiento por día</h3>
+          <ResponsiveContainer width="100%" height={220}>
+            <LineChart data={data.timeline || []}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+              <XAxis dataKey="_id" tick={{ fontSize: 10, fill: '#94A3B8' }} />
+              <YAxis tick={{ fontSize: 11, fill: '#94A3B8' }} />
+              <Tooltip contentStyle={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 12 }} />
+              <Line type="monotone" dataKey="avgSentiment" stroke="#F97316" strokeWidth={2} dot={{ r: 3 }} name="Sentimiento" />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* By agent */}
+      <div className="card">
+        <h3 className="text-sm font-semibold text-slate-700 mb-3">Sentimiento por agente</h3>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-xs text-slate-500 border-b border-slate-200">
+              <th className="pb-2 font-medium">Agente</th>
+              <th className="pb-2 font-medium text-center">Evaluaciones</th>
+              <th className="pb-2 font-medium text-center">Sent. prom.</th>
+              <th className="pb-2 font-medium text-center">Positivos</th>
+              <th className="pb-2 font-medium text-center">Negativos</th>
+              <th className="pb-2 font-medium">Ratio +/-</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(data.byAgent || []).map(a => (
+              <tr key={a._id} className="border-b border-slate-100 hover:bg-slate-50">
+                <td className="py-2.5 font-medium text-slate-700">{a.agentName}</td>
+                <td className="py-2.5 text-center">{a.totalEvals}</td>
+                <td className="py-2.5 text-center font-semibold" style={{ color: a.avgSentiment >= 0 ? '#059669' : '#DC2626' }}>
+                  {a.avgSentiment > 0 ? '+' : ''}{Math.round(a.avgSentiment)}
+                </td>
+                <td className="py-2.5 text-center text-emerald-600">{a.positive}</td>
+                <td className="py-2.5 text-center text-red-600">{a.negative}</td>
+                <td className="py-2.5">
+                  <div className="flex items-center gap-1">
+                    <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden flex">
+                      <div className="h-full bg-emerald-500" style={{ width: `${a.totalEvals > 0 ? (a.positive / a.totalEvals) * 100 : 0}%` }} />
+                      <div className="h-full bg-red-500" style={{ width: `${a.totalEvals > 0 ? (a.negative / a.totalEvals) * 100 : 0}%` }} />
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════
+// INCIDENTS REPORT
+// ═══════════════════════════════════════════════
+function IncidentsReport({ filters }) {
+  const [data, setData] = useState([]);
+
+  useEffect(() => {
+    const params = {};
+    if (filters.instance) params.instance = filters.instance;
+    if (filters.dateFrom) params.dateFrom = filters.dateFrom;
+    if (filters.dateTo) params.dateTo = filters.dateTo;
+    fetchAuth(`/reports/incidents?${new URLSearchParams(params)}`)
+      .then(r => r.json()).then(setData).catch(console.error);
+  }, [filters]);
+
+  const TYPE_LABELS = {
+    bank_outage: 'Caída de banco', platform_issue: 'Fallo plataforma', provider_down: 'Proveedor caído',
+    high_demand: 'Alta demanda', maintenance: 'Mantenimiento', other: 'Otro',
+  };
+
+  const formatDate = (d) => d ? new Date(d).toLocaleString('es-CL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
+  const getDuration = (s, e) => {
+    if (!s || !e) return '';
+    const ms = new Date(e) - new Date(s);
+    const h = Math.floor(ms / 3600000); const m = Math.floor((ms % 3600000) / 60000);
+    return h > 0 ? `${h}h ${m}m` : `${m}m`;
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-3 gap-4">
+        <div className="card text-center py-4">
+          <p className="text-xs text-slate-500">Total incidentes</p>
+          <p className="text-2xl font-bold text-slate-800 mt-1">{data.length}</p>
+        </div>
+        <div className="card text-center py-4">
+          <p className="text-xs text-slate-500">Evaluaciones afectadas</p>
+          <p className="text-2xl font-bold text-amber-600 mt-1">{data.reduce((s, d) => s + (d.affectedEvaluations || 0), 0)}</p>
+        </div>
+        <div className="card text-center py-4">
+          <p className="text-xs text-slate-500">Score prom. afectadas</p>
+          <p className="text-2xl font-bold text-slate-800 mt-1">
+            {data.filter(d => d.avgScore).length > 0
+              ? Math.round(data.filter(d => d.avgScore).reduce((s, d) => s + d.avgScore, 0) / data.filter(d => d.avgScore).length)
+              : '—'}
+          </p>
+        </div>
+      </div>
+
+      <div className="card">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-xs text-slate-500 border-b border-slate-200">
+              <th className="pb-2 font-medium">Incidente</th>
+              <th className="pb-2 font-medium">Tipo</th>
+              <th className="pb-2 font-medium">Instancia</th>
+              <th className="pb-2 font-medium">Período</th>
+              <th className="pb-2 font-medium text-center">Duración</th>
+              <th className="pb-2 font-medium text-center">Relajación</th>
+              <th className="pb-2 font-medium text-center">Evals afectadas</th>
+              <th className="pb-2 font-medium text-center">Score prom.</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.map(inc => (
+              <tr key={inc._id} className="border-b border-slate-100 hover:bg-slate-50">
+                <td className="py-2.5">
+                  <p className="font-medium text-slate-700">{inc.title}</p>
+                  {inc.description && <p className="text-xs text-slate-400 mt-0.5">{inc.description}</p>}
+                </td>
+                <td className="py-2.5"><span className="badge bg-slate-100 text-slate-600 text-[11px]">{TYPE_LABELS[inc.type] || inc.type}</span></td>
+                <td className="py-2.5 text-slate-500">{inc.instance === 'all' ? 'Todas' : inc.instance}</td>
+                <td className="py-2.5 text-xs text-slate-500">{formatDate(inc.startedAt)} → {formatDate(inc.endedAt)}</td>
+                <td className="py-2.5 text-center text-xs">{getDuration(inc.startedAt, inc.endedAt)}</td>
+                <td className="py-2.5 text-center"><span className="badge bg-amber-50 text-amber-700 border border-amber-200 text-[11px]">{inc.relaxFactor}x</span></td>
+                <td className="py-2.5 text-center font-semibold">{inc.affectedEvaluations || 0}</td>
+                <td className="py-2.5 text-center">{inc.avgScore ? <span style={{ color: inc.avgScore >= 75 ? '#059669' : '#D97706' }}>{inc.avgScore}</span> : '—'}</td>
+              </tr>
+            ))}
+            {data.length === 0 && <tr><td colSpan={8} className="text-center py-8 text-slate-400">No hay incidentes registrados</td></tr>}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
