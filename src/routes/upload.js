@@ -27,18 +27,44 @@ const upload = multer({ storage, limits: { fileSize: 50 * 1024 * 1024 } });
  * Upload conversations + messages CSVs for a specific date/instance
  */
 router.post('/',
-  upload.fields([
-    { name: 'conversations', maxCount: 1 },
-    { name: 'messages', maxCount: 1 },
-  ]),
+  upload.array('files', 2),
   async (req, res) => {
     const { instance, date } = req.body;
 
     if (!instance || !date) {
       return res.status(400).json({ error: 'instance and date are required' });
     }
-    if (!req.files?.conversations?.[0] || !req.files?.messages?.[0]) {
-      return res.status(400).json({ error: 'Both conversations and messages CSV files are required' });
+    if (!req.files || req.files.length < 2) {
+      return res.status(400).json({ error: 'Se requieren 2 archivos CSV (conversaciones y mensajes)' });
+    }
+
+    // Auto-detect which file is conversations and which is messages
+    // by reading the first line of each file
+    function readFirstLine(filePath) {
+      const content = fs.readFileSync(filePath, 'utf8');
+      return content.split('\n')[0] || '';
+    }
+
+    let convsFile = null;
+    let msgsFile = null;
+
+    for (const file of req.files) {
+      try {
+        const header = readFirstLine(file.path);
+        if (header.includes('Conversation ID') && header.includes('DateTime Conversation Started')) {
+          convsFile = file;
+        } else if (header.includes('Message ID') && header.includes('Sender Type')) {
+          msgsFile = file;
+        }
+      } catch (e) {
+        console.error('Error reading file header:', e.message);
+      }
+    }
+
+    if (!convsFile || !msgsFile) {
+      return res.status(400).json({
+        error: 'No se pudieron identificar los archivos. Asegúrate de subir el CSV de conversaciones y el de mensajes de Respond.io.',
+      });
     }
 
     // Check if there's already a batch in progress
@@ -56,13 +82,13 @@ router.post('/',
     const batch = await UploadBatch.create({
       instance,
       date: new Date(date + 'T12:00:00Z'),
-      conversationsFile: req.files.conversations[0].filename,
-      messagesFile: req.files.messages[0].filename,
+      conversationsFile: convsFile.filename,
+      messagesFile: msgsFile.filename,
       status: 'parsing',
     });
 
     // Start async processing
-    processUpload(batch, req.files.conversations[0].path, req.files.messages[0].path, instance)
+    processUpload(batch, convsFile.path, msgsFile.path, instance)
       .catch(err => {
         console.error('Upload processing error:', err);
         UploadBatch.findByIdAndUpdate(batch._id, { status: 'error' }).catch(() => {});
