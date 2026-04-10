@@ -7,10 +7,14 @@ const router = express.Router();
  * GET /api/evaluations
  */
 router.get('/', async (req, res) => {
-  const { instance, agentId, grade, dateFrom, dateTo, limit = 50, skip = 0, sort = '-finalScore' } = req.query;
+  const { instance, agentId, grade, dateFrom, dateTo, limit = 30, skip = 0, sort = '-finalScore' } = req.query;
 
-  // If filtering by date, we need to find matching conversation IDs first
-  let conversationIdFilter = null;
+  const query = { status: 'scored' };
+  if (instance) query.instance = instance;
+  if (agentId) query.agentId = agentId;
+  if (grade) query.grade = grade;
+
+  // Only do the $in lookup if date filters are set
   if (dateFrom || dateTo) {
     const convQuery = {};
     convQuery.startedAt = {};
@@ -21,29 +25,30 @@ router.get('/', async (req, res) => {
       convQuery.startedAt.$lte = endDate;
     }
     if (instance) convQuery.instance = instance;
-    const convIds = await Conversation.find(convQuery, { conversationId: 1 });
-    conversationIdFilter = convIds.map(c => c.conversationId);
+    const convIds = await Conversation.find(convQuery, { conversationId: 1 }).lean();
+    query.conversationId = { $in: convIds.map(c => c.conversationId) };
   }
 
-  const query = { status: 'scored' };
-  if (instance) query.instance = instance;
-  if (agentId) query.agentId = agentId;
-  if (grade) query.grade = grade;
-  if (conversationIdFilter !== null) {
-    query.conversationId = { $in: conversationIdFilter };
-  }
+  // Use lean() for faster reads, select only needed fields
+  const projection = {
+    conversationId: 1, agentId: 1, instance: 1, finalScore: 1, grade: 1,
+    'qualitative.summary': 1, 'sentiment.label': 1, 'sentiment.score': 1,
+    aiCategory: 1, aiCategories: 1, needsAttention: 1, attentionReason: 1,
+    coachingTip: 1, affectedByIncident: 1, incidentTitle: 1, evaluatedAt: 1,
+  };
 
   const [evaluations, total] = await Promise.all([
-    Evaluation.find(query).sort(sort).limit(parseInt(limit)).skip(parseInt(skip)),
+    Evaluation.find(query, projection).sort(sort).limit(parseInt(limit)).skip(parseInt(skip)).lean(),
     Evaluation.countDocuments(query),
   ]);
 
-  const agents = await Agent.find({});
+  // Cache agent names
+  const agents = await Agent.find({}, { respondioId: 1, name: 1 }).lean();
   const agentMap = {};
   agents.forEach(a => { agentMap[a.respondioId] = a.name; });
 
   const enriched = evaluations.map(e => ({
-    ...e.toObject(),
+    ...e,
     agentName: agentMap[e.agentId] || (e.agentId ? `Agente ${e.agentId}` : 'Sin asignar'),
   }));
 

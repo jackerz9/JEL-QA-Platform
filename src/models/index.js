@@ -68,6 +68,9 @@ const conversationSchema = new mongoose.Schema({
 
 conversationSchema.index({ instance: 1, startedAt: -1 });
 conversationSchema.index({ assigneeId: 1, startedAt: -1 });
+conversationSchema.index({ conversationId: 1 }, { unique: true });
+conversationSchema.index({ openedByChannel: 1, startedAt: -1 });
+conversationSchema.index({ startedAt: -1 });
 
 // ─── Mensajes ───
 const messageSchema = new mongoose.Schema({
@@ -150,9 +153,13 @@ const evaluationSchema = new mongoose.Schema({
   errorMessage: { type: String },
 }, { timestamps: true });
 
-evaluationSchema.index({ agentId: 1, evaluatedAt: -1 });
-evaluationSchema.index({ instance: 1, evaluatedAt: -1 });
-evaluationSchema.index({ finalScore: 1 });
+evaluationSchema.index({ status: 1, instance: 1, finalScore: -1 });
+evaluationSchema.index({ status: 1, instance: 1, evaluatedAt: -1 });
+evaluationSchema.index({ status: 1, conversationId: 1 });
+evaluationSchema.index({ agentId: 1, status: 1 });
+evaluationSchema.index({ conversationId: 1 }, { unique: true });
+evaluationSchema.index({ grade: 1, status: 1 });
+evaluationSchema.index({ affectedByIncident: 1, incidentId: 1 });
 
 // ─── Upload Batches ───
 const uploadBatchSchema = new mongoose.Schema({
