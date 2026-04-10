@@ -99,8 +99,7 @@ function EvalCalendar({ batches }) {
 export default function UploadPage() {
   const [instance, setInstance] = useState('venezuela');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [convsFile, setConvsFile] = useState(null);
-  const [msgsFile, setMsgsFile] = useState(null);
+  const [files, setFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [currentBatch, setCurrentBatch] = useState(null);
   const [batches, setBatches] = useState([]);
@@ -130,15 +129,24 @@ export default function UploadPage() {
     return () => clearInterval(interval);
   }, [currentBatch]);
 
+  const handleFiles = (e) => {
+    const selected = Array.from(e.target.files || []);
+    setFiles(selected.filter(f => f.name.endsWith('.csv')).slice(0, 2));
+    setError('');
+  };
+
+  const removeFile = (idx) => {
+    setFiles(prev => prev.filter((_, i) => i !== idx));
+  };
+
   const handleUpload = async () => {
-    if (!convsFile || !msgsFile) return setError('Selecciona ambos archivos CSV');
+    if (files.length < 2) return setError('Selecciona 2 archivos CSV (conversaciones y mensajes)');
     setError('');
     setUploading(true);
 
     try {
       const form = new FormData();
-      form.append('conversations', convsFile);
-      form.append('messages', msgsFile);
+      files.forEach(f => form.append('files', f));
       form.append('instance', instance);
       form.append('date', date);
 
@@ -151,8 +159,7 @@ export default function UploadPage() {
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || 'Upload failed');
       setCurrentBatch(result);
-      setConvsFile(null);
-      setMsgsFile(null);
+      setFiles([]);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -209,25 +216,29 @@ export default function UploadPage() {
             </div>
 
             <div>
-              <label className="text-xs text-slate-500 font-medium block mb-1.5">CSV Conversaciones</label>
-              <label className="flex items-center gap-3 p-3.5 border-2 border-dashed border-slate-200 rounded-xl cursor-pointer hover:border-jel-orange/40 transition-colors">
-                <FileText size={18} className={convsFile ? 'text-emerald-600' : 'text-slate-400'} />
-                <span className="text-sm text-slate-600 flex-1 truncate">
-                  {convsFile ? convsFile.name : 'Seleccionar archivo de conversaciones...'}
+              <label className="text-xs text-slate-500 font-medium block mb-1.5">Archivos CSV de Respond.io</label>
+              <label className="flex flex-col items-center gap-2 p-5 border-2 border-dashed border-slate-200 rounded-xl cursor-pointer hover:border-jel-orange/40 transition-colors text-center">
+                <Upload size={24} className={files.length === 2 ? 'text-emerald-500' : 'text-slate-300'} />
+                <span className="text-sm text-slate-500">
+                  {files.length === 0 && 'Selecciona los 2 archivos CSV (conversaciones y mensajes)'}
+                  {files.length === 1 && 'Falta 1 archivo — selecciona ambos'}
+                  {files.length === 2 && 'Archivos listos'}
                 </span>
-                <input type="file" accept=".csv" className="hidden" onChange={e => setConvsFile(e.target.files[0])} />
+                <input type="file" accept=".csv" multiple className="hidden" onChange={handleFiles} />
               </label>
-            </div>
-
-            <div>
-              <label className="text-xs text-slate-500 font-medium block mb-1.5">CSV Mensajes</label>
-              <label className="flex items-center gap-3 p-3.5 border-2 border-dashed border-slate-200 rounded-xl cursor-pointer hover:border-jel-orange/40 transition-colors">
-                <FileText size={18} className={msgsFile ? 'text-emerald-600' : 'text-slate-400'} />
-                <span className="text-sm text-slate-600 flex-1 truncate">
-                  {msgsFile ? msgsFile.name : 'Seleccionar archivo de mensajes...'}
-                </span>
-                <input type="file" accept=".csv" className="hidden" onChange={e => setMsgsFile(e.target.files[0])} />
-              </label>
+              {files.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {files.map((f, i) => (
+                    <div key={i} className="flex items-center gap-2 bg-slate-50 rounded-lg px-3 py-1.5">
+                      <FileText size={14} className="text-emerald-600 shrink-0" />
+                      <span className="text-xs text-slate-600 flex-1 truncate">{f.name}</span>
+                      <span className="text-[10px] text-slate-400">{(f.size / 1024).toFixed(0)} KB</span>
+                      <button onClick={() => removeFile(i)} className="text-slate-400 hover:text-red-500 text-xs">✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="text-[11px] text-slate-400 mt-1.5">El sistema detecta automáticamente cuál es el de conversaciones y cuál el de mensajes</p>
             </div>
 
             {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
@@ -235,7 +246,7 @@ export default function UploadPage() {
             <button
               className="btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-50"
               onClick={handleUpload}
-              disabled={uploading || !convsFile || !msgsFile || isProcessing}
+              disabled={uploading || files.length < 2 || isProcessing}
             >
               {uploading ? <Loader size={16} className="animate-spin" /> : <Upload size={16} />}
               {isProcessing ? 'Evaluación en curso...' : uploading ? 'Subiendo...' : 'Subir y evaluar'}
